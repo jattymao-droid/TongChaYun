@@ -228,7 +228,7 @@ public class GenUtils
     {
         if (StringUtils.indexOf(columnType, "(") > 0)
         {
-            return StringUtils.substringBefore(columnType, "(");
+            return StringUtils.substringBefore(columnType, "(").trim();
         }
         else
         {
@@ -247,6 +247,10 @@ public class GenUtils
         if (StringUtils.indexOf(columnType, "(") > 0)
         {
             String length = StringUtils.substringBetween(columnType, "(", ")");
+            if (StringUtils.indexOf(length, ",") >= 0)
+            {
+                length = StringUtils.substringBefore(length, ",");
+            }
             return Integer.valueOf(length);
         }
         else
