@@ -1,183 +1,136 @@
 <p align="center">
-  <img src="https://oscimg.oschina.net/oscnet/up-d3d0a9303e11d522a06cd263f3079027715.png" alt="RuoYi Logo" width="120">
+  <img src="./ruoyi-ui/public/logo.svg" alt="通查云" width="88" height="88">
 </p>
 
-<h1 align="center">RuoYi-Vue PostgreSQL Version</h1>
+<h1 align="center">通查云</h1>
 
 <p align="center">
-  <b>基于 RuoYi-Vue v3.9.2 · 前后端分离 · PostgreSQL 适配版</b>
+  <b>查询 · 问卷 · 一站式发布平台</b><br>
+  <sub>基于 RuoYi-Vue 3.9.2 · 前后端分离 · PostgreSQL</sub>
 </p>
 
 <p align="center">
-  <a href="https://gitee.com/jatty01/ruoyi-vue-postgresql-version"><img src="https://gitee.com/jatty01/ruoyi-vue-postgresql-version/badge/star.svg?theme=dark" alt="Gitee star"></a>
+  <a href="https://github.com/jattymao-droid/TongChaYun"><img src="https://img.shields.io/github/stars/jattymao-droid/TongChaYun?style=flat&logo=github" alt="Stars"></a>
   <img src="https://img.shields.io/badge/RuoYi-v3.9.2-brightgreen" alt="RuoYi">
   <img src="https://img.shields.io/badge/Spring%20Boot-4.x-6DB33F?logo=springboot&logoColor=white" alt="Spring Boot">
   <img src="https://img.shields.io/badge/PostgreSQL-14%2B-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL">
-  <img src="https://img.shields.io/badge/Vue-2.x-42B883?logo=vue.js&logoColor=white" alt="Vue">
+  <img src="https://img.shields.io/badge/Vue-2%20%2F%203-42B883?logo=vue.js&logoColor=white" alt="Vue">
   <img src="https://img.shields.io/badge/JDK-17%2B-orange?logo=openjdk&logoColor=white" alt="JDK">
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue" alt="License"></a>
 </p>
 
 <p align="center">
-  <a href="#-快速开始">快速开始</a> ·
+  <a href="#-产品能力">产品能力</a> ·
   <a href="#-技术栈">技术栈</a> ·
-  <a href="#-主要改动">主要改动</a> ·
-  <a href="#-内置功能">内置功能</a> ·
-  <a href="#-常见问题">常见问题</a>
+  <a href="#-快速开始">快速开始</a> ·
+  <a href="#-目录结构">目录结构</a> ·
+  <a href="#-文档">文档</a>
 </p>
 
 ---
 
-## ✨ 项目简介
+## ✨ 产品简介
 
-本仓库是在官方 [RuoYi-Vue](https://gitee.com/y_project/RuoYi-Vue) 基础上改造的版本，将默认 **MySQL** 替换为 **PostgreSQL**，保留若依完整的权限、代码生成与系统管理能力，适合本地开发与二次扩展。
+**通查云**面向成绩查询、录取查询、满意度问卷、活动报名等场景，提供管理端配置与免登录公开访问：
 
----
+- **快查**：Excel / 多数据集导入 → 条件配置 → 短链发布 → 结果页展示
+- **问卷**：拖拽设计、跳题逻辑、答卷统计、导出与 Webhook 通知
+- **发布**：短链 `/q/{code}`、`/s/{code}`，支持二维码、访问控制与限流
+- **运营**：业务看板、模板、基础设置、微信 / QQ 登录（可选）
 
-## 🎯 通查云 业务扩展（本仓库）
-
-在 PostgreSQL 版 RuoYi 上增加了 **查询系统 + 问卷系统**（模块 `ruoyi-biz`）：
-
-- 管理端：业务看板、查询/问卷 CRUD、拖拽设计、统计图表、复制、Webhook、站内答卷通知
-- 公开端：`/q/{code}` 查询 · `/s/{code}` 问卷（免登录，限流）
-- 文档：[dev.md](./dev.md) · [development-plan.md](./development-plan.md) · [docs/DEMO.md](./docs/DEMO.md)
-- 增量 SQL：`sql/biz_postgresql.sql` 及 `sql/biz_phase*.sql`
-- 冒烟：`./scripts/smoke_biz.sh`
-- 独立 H5：`ruoyi-h5/`（`npm run dev` → `http://127.0.0.1:5173`）
-
+底层保留若依完整的权限、菜单、字典、定时任务与代码生成能力，适合私有化部署与二次开发。
 
 | 项目 | 说明 |
 | :--- | :--- |
-| 仓库地址 | https://gitee.com/jatty01/ruoyi-vue-postgresql-version |
-| 上游项目 | [RuoYi-Vue v3.9.2](https://gitee.com/y_project/RuoYi-Vue) |
-| 架构模式 | 前后端分离（Spring Boot + Vue） |
-| 默认端口 | 后端 `8080` · 前端 `1024` |
+| 仓库 | https://github.com/jattymao-droid/TongChaYun |
+| 上游 | [RuoYi-Vue v3.9.2](https://gitee.com/y_project/RuoYi-Vue) |
+| 默认端口 | 后端 `8080` · 管理端 `1024` · H5 `5173` |
+
+---
+
+## 🎯 产品能力
+
+| 模块 | 能力 |
+| :--- | :--- |
+| 查询管理 | 多字段条件、多数据集、关联、结果页主题、访问密码、UV/次数统计、导出 |
+| 问卷管理 | 丰富题型、跳题、草稿、答卷通知、交叉分析、Webhook |
+| 工作台 | 最近修改、从模板创建、业务看板 |
+| 公开访问 | 管理端内置公开页 + 独立 `ruoyi-h5`（Vue 3） |
+| 系统管理 | 用户角色权限、基础设置（站点名/Logo/邮件/第三方登录） |
+| 第三方登录 | 微信开放平台网站应用扫码、QQ 互联 OAuth2（可选启用） |
 
 ---
 
 ## 🛠 技术栈
 
-<table>
-  <tr>
-    <td width="25%"><b>后端</b></td>
-    <td>Spring Boot 4.x · Spring Security · JWT · MyBatis · Druid · Redis · PageHelper</td>
-  </tr>
-  <tr>
-    <td><b>前端</b></td>
-    <td>Vue 2 · Element UI · Vuex · Vue Router · Axios</td>
-  </tr>
-  <tr>
-    <td><b>数据库</b></td>
-    <td><b>PostgreSQL 14+</b>（推荐 16 / 18）</td>
-  </tr>
-  <tr>
-    <td><b>环境</b></td>
-    <td>JDK 17+ · Maven 3.8+ · Node.js 16+ · Redis</td>
-  </tr>
-</table>
-
----
-
-## 🔄 主要改动
-
-相对官方 MySQL 版，本仓库完成了以下适配：
-
-- ✅ 数据源驱动与 JDBC 连接串切换为 PostgreSQL
-- ✅ PageHelper 方言改为 `postgresql`
-- ✅ Mapper / 数据权限 SQL 语法适配  
-  `sysdate()` → `now()` · `ifnull` → `coalesce` · `find_in_set` → `string_to_array`
-- ✅ 代码生成器元数据查询改为读取 `pg_catalog`
-- ✅ 提供完整 PostgreSQL 初始化脚本与一键导入工具
-
----
-
-## 📦 内置功能
-
-<details open>
-<summary><b>点击展开 / 收起功能清单</b></summary>
-
-<br>
-
-| 模块 | 说明 |
+| 层级 | 技术 |
 | :--- | :--- |
-| 用户管理 | 系统用户配置与维护 |
-| 部门管理 | 组织机构树，支持数据权限 |
-| 岗位管理 | 职务配置 |
-| 菜单管理 | 菜单、操作权限、按钮权限标识 |
-| 角色管理 | 菜单权限 + 数据范围权限 |
-| 字典 / 参数 | 系统字典与动态参数配置 |
-| 通知公告 | 公告发布与已读记录 |
-| 日志审计 | 操作日志、登录日志 |
-| 在线用户 | 活跃会话监控 |
-| 定时任务 | 任务调度与执行日志 |
-| 代码生成 | 一键生成前后端 CRUD 代码 |
-| 系统接口 | SpringDoc API 文档 |
-| 监控中心 | 服务监控、缓存监控、连接池监视 |
-
-</details>
+| 后端 | Spring Boot 4.x · Spring Security · JWT · MyBatis · Druid · Redis |
+| 管理端 | Vue 2 · Element UI · Vuex · Axios |
+| 公开 H5 | Vue 3 · Vite |
+| 数据库 | **PostgreSQL 14+**（推荐 16） |
+| 环境 | JDK 17+ · Maven 3.8+ · Node.js 16+ · Redis |
 
 ---
 
 ## 🚀 快速开始
 
-> **前置条件**：本机已安装并启动 PostgreSQL、Redis；已安装 JDK 17+、Maven、Node.js。
+> 前置：本机已启动 **PostgreSQL**、**Redis**；已安装 JDK 17+、Maven、Node.js。
 
-### ① 初始化数据库
+### 1. 克隆仓库
+
+```bash
+git clone https://github.com/jattymao-droid/TongChaYun.git
+cd TongChaYun
+```
+
+### 2. 初始化数据库
 
 默认库名：`ry_vue`
 
 ```bash
-# 推荐：读取 application-druid.yml 自动建库导入
+# 推荐：一键建库导入若依基础脚本
 python3 sql/init_postgresql.py
 
-# 或手动导入
-# createdb -U postgres ry_vue
+# 或手动
 psql -U postgres -d ry_vue -f sql/ry_postgresql.sql
 psql -U postgres -d ry_vue -f sql/quartz_postgresql.sql
 ```
 
-| 文件 | 用途 |
-| :--- | :--- |
-| `sql/ry_postgresql.sql` | 业务表 + 初始数据 |
-| `sql/quartz_postgresql.sql` | Quartz 表（可选） |
-| `sql/init_postgresql.py` | 一键建库导入 |
-| `sql/convert_mysql_to_pg.py` | MySQL 脚本 → PG 脚本转换 |
-
-### ② 修改配置
-
-编辑 `ruoyi-admin/src/main/resources/application-druid.yml`：
-
-```yaml
-spring:
-  datasource:
-    driverClassName: org.postgresql.Driver
-    druid:
-      master:
-        url: jdbc:postgresql://localhost:5432/ry_vue?stringtype=unspecified&TimeZone=Asia/Shanghai
-        username: postgres
-        password: your_password
-```
-
-同时按需修改：
-
-| 配置项 | 文件 | 说明 |
-| :--- | :--- | :--- |
-| `ruoyi.profile` | `application.yml` | 上传文件目录 |
-| `log.path` | `logback.xml` | 日志目录 |
-| Redis | `application.yml` | 默认 `localhost:6379` |
-
-### ③ 启动后端
+再导入业务扩展（按需，可依次执行）：
 
 ```bash
-mvn clean package -DskipTests
+psql -U postgres -d ry_vue -f sql/biz_postgresql.sql
+psql -U postgres -d ry_vue -f sql/biz_phase27_basic_settings.sql
+psql -U postgres -d ry_vue -f sql/biz_oauth_bind.sql
+# 其余增量见 sql/biz_phase*.sql
+```
+
+### 3. 配置环境变量
+
+数据库口令**不要写死在仓库**，请用环境变量：
+
+```bash
+export DB_HOST=127.0.0.1
+export DB_PORT=5432
+export DB_NAME=ry_vue
+export DB_USERNAME=postgres
+export DB_PASSWORD=你的密码
+```
+
+可选：`RUOYI_PROFILE`（上传目录）、Redis 配置见 `ruoyi-admin/src/main/resources/application.yml`。
+
+### 4. 启动后端
+
+```bash
+mvn -pl ruoyi-admin -am package -DskipTests
 java -jar ruoyi-admin/target/ruoyi-admin.jar
 ```
 
-🌐 后端地址：http://localhost:8080  
+- 接口：http://127.0.0.1:8080  
+- 也可 IDE 运行 `com.ruoyi.RuoYiApplication`
 
-也可在 IDE 中直接运行 `com.ruoyi.RuoYiApplication`。
-
-### ④ 启动前端
+### 5. 启动管理端
 
 ```bash
 cd ruoyi-ui
@@ -185,37 +138,65 @@ npm install
 npm run dev
 ```
 
-🌐 前端地址：http://localhost:1024
+- 地址：http://127.0.0.1:1024
+
+### 6. （可选）启动公开 H5
+
+```bash
+cd ruoyi-h5
+npm install
+npm run dev
+```
+
+- 地址：http://127.0.0.1:5173  
+- 路由：`/q/:code` 查询 · `/s/:code` 问卷
 
 ---
 
 ## 🔑 默认账号
 
-| 账号 | 密码 | 角色 |
+| 账号 | 密码 | 说明 |
 | :---: | :---: | :--- |
 | `admin` | `admin123` | 超级管理员 |
-| `ry` | `admin123` | 普通角色示例用户 |
+| `ry` | `admin123` | 普通角色示例 |
 
-> ⚠️ 生产环境请务必修改默认密码，勿将真实数据库口令提交到仓库。
+> 生产环境请立即修改默认密码；勿将真实数据库口令、OAuth 密钥提交到 Git。
 
 ---
 
 ## 📁 目录结构
 
 ```text
-ruoyi-vue-postgresql-version
-├── ruoyi-admin          # Web 启动入口
-├── ruoyi-common         # 通用工具与常量
-├── ruoyi-framework      # 安全、数据源、AOP 等框架层
-├── ruoyi-system         # 系统业务模块
-├── ruoyi-quartz         # 定时任务
-├── ruoyi-generator      # 代码生成
-├── ruoyi-ui             # Vue 前端工程
-└── sql                  # PostgreSQL 脚本与工具
-    ├── ry_postgresql.sql
-    ├── quartz_postgresql.sql
-    ├── init_postgresql.py
-    └── convert_mysql_to_pg.py
+TongChaYun
+├── ruoyi-admin       # 启动入口 / Controller
+├── ruoyi-framework   # 安全、缓存、OAuth 登录等
+├── ruoyi-system      # 系统用户、基础设置
+├── ruoyi-biz         # 查询 / 问卷业务模块
+├── ruoyi-ui          # 管理端（Vue 2）
+├── ruoyi-h5          # 公开 H5（Vue 3）
+├── sql               # PostgreSQL 脚本（含 biz_*）
+├── scripts           # 冒烟脚本等
+├── docs              # 演示与改造说明
+├── dev.md            # 需求与设计
+└── development-plan.md
+```
+
+---
+
+## 📚 文档
+
+| 文档 | 说明 |
+| :--- | :--- |
+| [dev.md](./dev.md) | 需求与设计 |
+| [development-plan.md](./development-plan.md) | 分阶段开发计划 |
+| [docs/DEMO.md](./docs/DEMO.md) | 演示指南 |
+| [docs/IMPROVEMENT.md](./docs/IMPROVEMENT.md) | 改造清单 |
+| [ruoyi-h5/README.md](./ruoyi-h5/README.md) | 独立 H5 部署 |
+
+冒烟检查（后端已启动时）：
+
+```bash
+./scripts/smoke_biz.sh
 ```
 
 ---
@@ -223,37 +204,44 @@ ruoyi-vue-postgresql-version
 ## ❓ 常见问题
 
 <details>
-<summary><b>1. 报错 character = integer</b></summary>
+<summary><b>1. PostgreSQL：character = integer</b></summary>
 
 <br>
 
-PostgreSQL 类型校验更严格。`char` 字段请与字符串比较：
+`char` / 状态字段请与字符串比较：`status = '0'`，不要写 `status = 0`。
 
-```sql
--- ❌ 错误
-status = 0
+</details>
 
--- ✅ 正确
-status = '0'
+<details>
+<summary><b>2. 数据库连接失败</b></summary>
+
+<br>
+
+确认已设置 `DB_PASSWORD`，且 `application-druid.yml` 使用 `${DB_PASSWORD:}`。可用：
+
+```bash
+export DB_PASSWORD=你的密码
 ```
 
 </details>
 
 <details>
-<summary><b>2. 启动失败：日志目录不存在</b></summary>
+<summary><b>3. 微信 / QQ 登录按钮无法跳转</b></summary>
 
 <br>
 
-检查 `logback.xml` 中的 `log.path`，确保目录已创建且进程可写。
+在 **系统管理 → 基础设置 → 第三方登录** 启用并填写 AppID / 密钥，同时在开放平台登记回调地址：
+
+`{callbackBase}/login/oauth/callback/wechat|qq`
 
 </details>
 
 <details>
-<summary><b>3. 代码生成“导入表”为空</b></summary>
+<summary><b>4. 日志目录不存在导致启动失败</b></summary>
 
 <br>
 
-确认表注释已写入（脚本末尾包含 `COMMENT ON`），且当前连接用户默认 schema 为 `public`。
+检查 `logback.xml` 中的 `log.path`，确保目录存在且可写。
 
 </details>
 
@@ -261,12 +249,12 @@ status = '0'
 
 ## 🙏 致谢
 
-本项目基于若依开源框架 [RuoYi-Vue](https://gitee.com/y_project/RuoYi-Vue) 二次开发，感谢原作者与社区贡献者。
+本项目基于开源框架 [RuoYi-Vue](https://gitee.com/y_project/RuoYi-Vue) 二次开发，感谢原作者与社区。
 
 | 资源 | 链接 |
 | :--- | :--- |
-| 官方文档 | http://doc.ruoyi.vip |
-| 官方演示 | http://vue.ruoyi.vip |
+| 若依文档 | http://doc.ruoyi.vip |
+| 若依演示 | http://vue.ruoyi.vip |
 | 上游仓库 | https://gitee.com/y_project/RuoYi-Vue |
 
 ---
@@ -276,5 +264,5 @@ status = '0'
 沿用若依开源协议，详见 [LICENSE](./LICENSE)。
 
 <p align="center">
-  <sub>If this project helps you, please give it a ⭐ on Gitee.</sub>
+  <sub>如果通查云对你有帮助，欢迎在 GitHub 点一颗 ⭐</sub>
 </p>
