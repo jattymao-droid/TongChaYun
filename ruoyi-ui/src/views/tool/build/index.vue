@@ -147,7 +147,6 @@ import { makeUpHtml, vueTemplate, vueScript, cssStyle } from '@/utils/generator/
 import { makeUpJs } from '@/utils/generator/js'
 import { makeUpCss } from '@/utils/generator/css'
 import { drawingDefaultValue, initDrawingDefaultValue, cleanDrawingDefaultValue } from '@/utils/generator/drawingDefault'
-import logo from '@/assets/logo/logo.png'
 import CodeTypeDialog from './CodeTypeDialog'
 import DraggableItem from './DraggableItem'
 
@@ -165,7 +164,7 @@ export default {
   },
   data() {
     return {
-      logo,
+      logo: (process.env.BASE_URL || '/') + 'logo.svg',
       idGlobal: 100,
       formConf,
       inputComponents,

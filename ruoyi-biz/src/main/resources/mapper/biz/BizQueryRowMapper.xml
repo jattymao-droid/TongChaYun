@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.biz.mapper.BizQueryRowMapper">
+
+    <resultMap type="BizQueryRow" id="RowResult">
+        <id property="rowId" column="row_id"/>
+        <result property="queryId" column="query_id"/>
+        <result property="rowNo" column="row_no"/>
+        <result property="rowData" column="row_data"/>
+    </resultMap>
+
+    <insert id="batchInsertRows" parameterType="java.util.List">
+        insert into biz_query_row (query_id, row_no, row_data) values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.queryId}, #{item.rowNo}, #{item.rowData}::jsonb)
+        </foreach>
+    </insert>
+
+    <delete id="deleteByQueryId" parameterType="Long">
+        delete from biz_query_row where query_id = #{queryId}
+    </delete>
+
+    <sql id="whereConditions">
+        where query_id = #{queryId}
+        <if test="conditions != null and conditions.size() &gt; 0">
+            <foreach collection="conditions" item="c">
+                <choose>
+                    <when test='c.op == "LIKE"'>
+                        and row_data -&gt;&gt; #{c.key} ilike ('%' || #{c.value} || '%')
+                    </when>
+                    <when test='c.op == "BETWEEN"'>
+                        and row_data -&gt;&gt; #{c.key} &gt;= #{c.value}
+                        and row_data -&gt;&gt; #{c.key} &lt;= #{c.value2}
+                    </when>
+                    <when test='c.op == "GT"'>
+                        and row_data -&gt;&gt; #{c.key} &gt; #{c.value}
+                    </when>
+                    <when test='c.op == "GTE"'>
+                        and row_data -&gt;&gt; #{c.key} &gt;= #{c.value}
+                    </when>
+                    <when test='c.op == "LT"'>
+                        and row_data -&gt;&gt; #{c.key} &lt; #{c.value}
+                    </when>
+                    <when test='c.op == "LTE"'>
+                        and row_data -&gt;&gt; #{c.key} &lt;= #{c.value}
+                    </when>
+                    <when test='c.op == "IN"'>
+                        and row_data -&gt;&gt; #{c.key} = any(string_to_array(#{c.value}, ','))
+                    </when>
+                    <when test='c.op == "EQ"'>
+                        and row_data -&gt;&gt; #{c.key} = #{c.value}
+                    </when>
+                    <otherwise>
+                        and row_data -&gt;&gt; #{c.key} = #{c.value}
+                    </otherwise>
+                </choose>
+            </foreach>
+        </if>
+    </sql>
+
+    <select id="searchRows" resultMap="RowResult">
+        select row_id, query_id, row_no, row_data::text as row_data
+        from biz_query_row
+        <include refid="whereConditions"/>
+        <choose>
+            <when test="orderKey != null and orderKey != ''">
+                order by row_data -&gt;&gt; #{orderKey} nulls last, row_no
+            </when>
+            <otherwise>
+                order by row_no
+            </otherwise>
+        </choose>
+    </select>
+
+    <select id="selectSampleRows" resultMap="RowResult">
+        select row_id, query_id, row_no, row_data::text as row_data
+        from biz_query_row
+        where query_id = #{queryId}
+        order by row_no
+        limit #{limit}
+    </select>
+
+    <select id="countRows" resultType="long">
+        select count(1) from biz_query_row
+        <include refid="whereConditions"/>
+    </select>
+
+    <select id="selectMaxRowNo" parameterType="Long" resultType="Integer">
+        select coalesce(max(row_no), 0) from biz_query_row where query_id = #{queryId}
+    </select>
+
+    <select id="selectAllRows" parameterType="Long" resultMap="RowResult">
+        select row_id, query_id, row_no, row_data::text as row_data
+        from biz_query_row
+        where query_id = #{queryId}
+        order by row_no
+    </select>
+
+    <select id="selectFieldDist" resultType="java.util.HashMap">
+        select coalesce(nullif(row_data -&gt;&gt; #{fieldKey}, ''), '(空)') as value,
+               count(1)::bigint as count
+        from biz_query_row
+        where query_id = #{queryId}
+        group by 1
+        order by count desc, value
+        limit 30
+    </select>
+
+    <select id="selectFieldDistFiltered" resultType="java.util.HashMap">
+        select coalesce(nullif(row_data -&gt;&gt; #{fieldKey}, ''), '(空)') as value,
+               count(1)::bigint as count
+        from biz_query_row
+        <include refid="whereConditions"/>
+        group by 1
+        order by count desc, value
+        limit 30
+    </select>
+</mapper>

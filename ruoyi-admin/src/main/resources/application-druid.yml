@@ -6,9 +6,9 @@ spring:
         druid:
             # 主库数据源
             master:
-                url: jdbc:postgresql://localhost:5432/ry_vue?stringtype=unspecified&TimeZone=Asia/Shanghai
-                username: postgres
-                password: your_password
+                url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:ry_vue}?stringtype=unspecified&TimeZone=Asia/Shanghai
+                username: ${DB_USERNAME:postgres}
+                password: ${DB_PASSWORD:}
             # 从库数据源
             slave:
                 # 从数据源开关/默认关闭
@@ -43,12 +43,12 @@ spring:
                 enabled: true
             statViewServlet:
                 enabled: true
-                # 设置白名单，不填则允许所有访问
-                allow:
+                # 仅本机可访问控制台；生产可再配合登录态（Security 已要求认证）
+                allow: 127.0.0.1
                 url-pattern: /druid/*
-                # 控制台管理用户名和密码
-                login-username: ruoyi
-                login-password: 123456
+                # 控制台管理用户名和密码（可用环境变量覆盖）
+                login-username: ${DRUID_USER:ruoyi}
+                login-password: ${DRUID_PASSWORD:ChangeMe-Druid}
             filter:
                 stat:
                     enabled: true

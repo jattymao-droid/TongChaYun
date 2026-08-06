@@ -389,7 +389,7 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-$tags-bar-height: 34px;
+$tags-bar-height: 40px;
 
 .tags-view-container {
   height: $tags-bar-height;
@@ -443,17 +443,17 @@ $tags-bar-height: 34px;
       display: inline-block;
       position: relative;
       cursor: pointer;
-      height: 26px;
-      line-height: 26px;
+      height: 28px;
+      line-height: 28px;
       border: 1px solid #d8dce5;
       color: #495060;
       background: #fff;
-      padding: 0 8px;
+      padding: 0 12px;
       font-size: 12px;
-      margin-left: 5px;
-      border-radius: 3px;
+      margin-left: 6px;
+      border-radius: 4px;
 
-      &:first-of-type { margin-left: 6px; }
+      &:first-of-type { margin-left: 10px; }
       &:last-of-type  { margin-right: 15px; }
     }
   }

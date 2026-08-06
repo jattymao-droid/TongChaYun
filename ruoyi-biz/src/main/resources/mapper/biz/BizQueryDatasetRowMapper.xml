@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.biz.mapper.BizQueryDatasetRowMapper">
+
+    <resultMap type="BizQueryDatasetRow" id="DsRowResult">
+        <id property="rowId" column="row_id"/>
+        <result property="datasetId" column="dataset_id"/>
+        <result property="queryId" column="query_id"/>
+        <result property="rowNo" column="row_no"/>
+        <result property="rowData" column="row_data"/>
+    </resultMap>
+
+    <insert id="batchInsertRows" parameterType="java.util.List">
+        insert into biz_query_dataset_row (dataset_id, query_id, row_no, row_data) values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.datasetId}, #{item.queryId}, #{item.rowNo}, #{item.rowData}::jsonb)
+        </foreach>
+    </insert>
+
+    <delete id="deleteByDatasetId" parameterType="Long">
+        delete from biz_query_dataset_row where dataset_id = #{datasetId}
+    </delete>
+
+    <delete id="deleteByQueryId" parameterType="Long">
+        delete from biz_query_dataset_row where query_id = #{queryId}
+    </delete>
+
+    <select id="selectByDatasetId" parameterType="Long" resultMap="DsRowResult">
+        select row_id, dataset_id, query_id, row_no, row_data::text as row_data
+        from biz_query_dataset_row
+        where dataset_id = #{datasetId}
+        order by row_no, row_id
+    </select>
+
+    <select id="selectMaxRowNo" parameterType="Long" resultType="Integer">
+        select coalesce(max(row_no), 0) from biz_query_dataset_row where dataset_id = #{datasetId}
+    </select>
+</mapper>

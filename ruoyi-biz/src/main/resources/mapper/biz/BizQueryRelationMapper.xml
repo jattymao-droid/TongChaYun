@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.biz.mapper.BizQueryRelationMapper">
+
+    <resultMap type="BizQueryRelation" id="RelationResult">
+        <id property="relationId" column="relation_id"/>
+        <result property="queryId" column="query_id"/>
+        <result property="leftDatasetId" column="left_dataset_id"/>
+        <result property="rightDatasetId" column="right_dataset_id"/>
+        <result property="joinType" column="join_type"/>
+        <result property="multiMatch" column="multi_match"/>
+        <result property="joinKeysJson" column="join_keys_json"/>
+        <result property="sort" column="sort"/>
+        <result property="leftDatasetName" column="left_dataset_name"/>
+        <result property="rightDatasetName" column="right_dataset_name"/>
+    </resultMap>
+
+    <select id="selectByQueryId" parameterType="Long" resultMap="RelationResult">
+        select r.*,
+               ld.dataset_name as left_dataset_name,
+               rd.dataset_name as right_dataset_name
+        from biz_query_relation r
+        left join biz_query_dataset ld on ld.dataset_id = r.left_dataset_id
+        left join biz_query_dataset rd on rd.dataset_id = r.right_dataset_id
+        where r.query_id = #{queryId}
+        order by r.sort, r.relation_id
+    </select>
+
+    <insert id="insertRelation" parameterType="BizQueryRelation" useGeneratedKeys="true" keyProperty="relationId">
+        insert into biz_query_relation (query_id, left_dataset_id, right_dataset_id, join_type, multi_match, join_keys_json, sort)
+        values (#{queryId}, #{leftDatasetId}, #{rightDatasetId}, coalesce(#{joinType}, 'LEFT'),
+                coalesce(#{multiMatch}, 'EXPAND'), #{joinKeysJson}, coalesce(#{sort}, 0))
+    </insert>
+
+    <delete id="deleteByQueryId" parameterType="Long">
+        delete from biz_query_relation where query_id = #{queryId}
+    </delete>
+
+    <delete id="deleteByDatasetId" parameterType="Long">
+        delete from biz_query_relation
+        where left_dataset_id = #{datasetId} or right_dataset_id = #{datasetId}
+    </delete>
+</mapper>

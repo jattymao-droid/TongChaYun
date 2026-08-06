@@ -16,8 +16,10 @@ import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.framework.manager.AsyncManager;
 import com.ruoyi.framework.manager.factory.AsyncFactory;
+import com.ruoyi.system.service.ISysBasicService;
 import com.ruoyi.system.service.ISysConfigService;
 import com.ruoyi.system.service.ISysUserService;
+import com.ruoyi.common.core.text.Convert;
 
 /**
  * 注册校验方法
@@ -32,6 +34,9 @@ public class SysRegisterService
 
     @Autowired
     private ISysConfigService configService;
+
+    @Autowired
+    private ISysBasicService basicService;
 
     @Autowired
     private RedisCache redisCache;
@@ -50,6 +55,20 @@ public class SysRegisterService
         if (captchaEnabled)
         {
             validateCaptcha(username, registerBody.getCode(), registerBody.getUuid());
+        }
+
+        boolean mailVerify = Convert.toBool(configService.selectConfigByKey("sys.mail.verifyEnabled"), false);
+        if (mailVerify)
+        {
+            try
+            {
+                basicService.validateRegisterEmailCode(registerBody.getEmail(), registerBody.getEmailCode());
+            }
+            catch (RuntimeException e)
+            {
+                return e.getMessage();
+            }
+            sysUser.setEmail(registerBody.getEmail());
         }
 
         if (StringUtils.isEmpty(username))

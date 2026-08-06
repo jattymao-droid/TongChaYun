@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.biz.mapper.BizSurveyNotifyMapper">
+
+    <resultMap type="BizSurveyNotify" id="NotifyResult">
+        <id property="notifyId" column="notify_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="surveyId" column="survey_id"/>
+        <result property="answerId" column="answer_id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="readFlag" column="read_flag"/>
+        <result property="createTime" column="create_time"/>
+        <result property="surveyName" column="survey_name"/>
+    </resultMap>
+
+    <insert id="insertNotify" parameterType="BizSurveyNotify" useGeneratedKeys="true" keyProperty="notifyId">
+        insert into biz_survey_notify (user_id, survey_id, answer_id, title, content, read_flag, create_time)
+        values (#{userId}, #{surveyId}, #{answerId}, #{title}, #{content}, '0', now())
+    </insert>
+
+    <select id="selectNotifyList" parameterType="BizSurveyNotify" resultMap="NotifyResult">
+        select n.notify_id, n.user_id, n.survey_id, n.answer_id, n.title, n.content, n.read_flag, n.create_time,
+               s.survey_name
+        from biz_survey_notify n
+        left join biz_survey s on s.survey_id = n.survey_id
+        <where>
+            <if test="userId != null">and n.user_id = #{userId}</if>
+            <if test="readFlag != null and readFlag != ''">and n.read_flag = #{readFlag}</if>
+            <if test="surveyId != null">and n.survey_id = #{surveyId}</if>
+        </where>
+        order by n.notify_id desc
+    </select>
+
+    <select id="selectNotifyTop" resultMap="NotifyResult">
+        select n.notify_id, n.user_id, n.survey_id, n.answer_id, n.title, n.content, n.read_flag, n.create_time,
+               s.survey_name
+        from biz_survey_notify n
+        left join biz_survey s on s.survey_id = n.survey_id
+        where n.user_id = #{userId}
+        order by n.notify_id desc
+        limit #{limit}
+    </select>
+
+    <select id="countUnread" resultType="long">
+        select count(1) from biz_survey_notify where user_id = #{userId} and read_flag = '0'
+    </select>
+
+    <update id="markRead">
+        update biz_survey_notify set read_flag = '1'
+        where notify_id = #{notifyId} and user_id = #{userId}
+    </update>
+
+    <update id="markAllRead">
+        update biz_survey_notify set read_flag = '1'
+        where user_id = #{userId} and read_flag = '0'
+    </update>
+</mapper>

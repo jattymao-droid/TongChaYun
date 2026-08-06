@@ -118,6 +118,22 @@ public class SysUserServiceImpl implements ISysUserService
     }
 
     /**
+     * 通过邮箱查询用户
+     *
+     * @param email 邮箱
+     * @return 用户对象信息
+     */
+    @Override
+    public SysUser selectUserByEmail(String email)
+    {
+        if (StringUtils.isEmpty(email))
+        {
+            return null;
+        }
+        return userMapper.selectUserByEmail(email.trim());
+    }
+
+    /**
      * 通过用户ID查询用户
      * 
      * @param userId 用户ID
@@ -277,9 +293,44 @@ public class SysUserServiceImpl implements ISysUserService
      * @return 结果
      */
     @Override
+    @Transactional
     public boolean registerUser(SysUser user)
     {
-        return userMapper.insertUser(user) > 0;
+        if (user.getDeptId() == null)
+        {
+            // 默认挂到根部门，便于业务表写入 dept_id
+            user.setDeptId(100L);
+        }
+        boolean ok = userMapper.insertUser(user) > 0;
+        if (ok && user.getUserId() != null)
+        {
+            Long roleId = resolveRegisterRoleId();
+            if (roleId != null)
+            {
+                insertUserRole(user.getUserId(), new Long[] { roleId });
+            }
+        }
+        return ok;
+    }
+
+    /**
+     * 注册用户默认角色：优先 sys.account.registerRoleKey（默认 biz_user）
+     */
+    private Long resolveRegisterRoleId()
+    {
+        String roleKey = configService.selectConfigByKey("sys.account.registerRoleKey");
+        if (StringUtils.isEmpty(roleKey))
+        {
+            roleKey = "biz_user";
+        }
+        SysRole role = roleMapper.checkRoleKeyUnique(roleKey);
+        if (role != null && role.getRoleId() != null)
+        {
+            return role.getRoleId();
+        }
+        // 兜底：SQL 脚本约定的业务用户角色 ID
+        SysRole fallback = roleMapper.selectRoleById(3L);
+        return fallback == null ? null : fallback.getRoleId();
     }
 
     /**

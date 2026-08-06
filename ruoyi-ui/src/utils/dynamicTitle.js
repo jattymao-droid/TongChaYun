@@ -5,9 +5,10 @@ import defaultSettings from '@/settings'
  * 动态修改标题
  */
 export function useDynamicTitle() {
-  if (store.state.settings.dynamicTitle) {
-    document.title = store.state.settings.title + ' - ' + defaultSettings.title
+  const site = store.state.settings.siteTitle || defaultSettings.title
+  if (store.state.settings.dynamicTitle && store.state.settings.title) {
+    document.title = store.state.settings.title + ' - ' + site
   } else {
-    document.title = defaultSettings.title
+    document.title = site
   }
 }

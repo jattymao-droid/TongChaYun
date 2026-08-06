@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.biz.mapper.BizQueryDatasetMapper">
+
+    <resultMap type="BizQueryDataset" id="DatasetResult">
+        <id property="datasetId" column="dataset_id"/>
+        <result property="queryId" column="query_id"/>
+        <result property="datasetCode" column="dataset_code"/>
+        <result property="datasetName" column="dataset_name"/>
+        <result property="isPrimary" column="is_primary"/>
+        <result property="sourceFile" column="source_file"/>
+        <result property="sheetName" column="sheet_name"/>
+        <result property="rowCount" column="row_count"/>
+        <result property="headersJson" column="headers_json"/>
+        <result property="sort" column="sort"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <select id="selectByQueryId" parameterType="Long" resultMap="DatasetResult">
+        select * from biz_query_dataset where query_id = #{queryId} order by sort, dataset_id
+    </select>
+
+    <select id="selectById" parameterType="Long" resultMap="DatasetResult">
+        select * from biz_query_dataset where dataset_id = #{datasetId}
+    </select>
+
+    <insert id="insertDataset" parameterType="BizQueryDataset" useGeneratedKeys="true" keyProperty="datasetId">
+        insert into biz_query_dataset (query_id, dataset_code, dataset_name, is_primary, source_file, sheet_name,
+            row_count, headers_json, sort, create_time, update_time)
+        values (#{queryId}, #{datasetCode}, #{datasetName}, coalesce(#{isPrimary}, '0'), #{sourceFile}, #{sheetName},
+            coalesce(#{rowCount}, 0), #{headersJson}, coalesce(#{sort}, 0), now(), now())
+    </insert>
+
+    <update id="updateDataset" parameterType="BizQueryDataset">
+        update biz_query_dataset
+        <set>
+            <if test="datasetName != null">dataset_name = #{datasetName},</if>
+            <if test="isPrimary != null">is_primary = #{isPrimary},</if>
+            <if test="sourceFile != null">source_file = #{sourceFile},</if>
+            <if test="sheetName != null">sheet_name = #{sheetName},</if>
+            <if test="rowCount != null">row_count = #{rowCount},</if>
+            <if test="headersJson != null">headers_json = #{headersJson},</if>
+            <if test="sort != null">sort = #{sort},</if>
+            update_time = now()
+        </set>
+        where dataset_id = #{datasetId}
+    </update>
+
+    <update id="clearPrimary" parameterType="Long">
+        update biz_query_dataset set is_primary = '0', update_time = now() where query_id = #{queryId}
+    </update>
+
+    <delete id="deleteById" parameterType="Long">
+        delete from biz_query_dataset where dataset_id = #{datasetId}
+    </delete>
+
+    <delete id="deleteByQueryId" parameterType="Long">
+        delete from biz_query_dataset where query_id = #{queryId}
+    </delete>
+</mapper>

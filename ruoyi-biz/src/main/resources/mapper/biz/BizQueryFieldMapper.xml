@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.biz.mapper.BizQueryFieldMapper">
+
+    <resultMap type="BizQueryField" id="FieldResult">
+        <id property="fieldId" column="field_id"/>
+        <result property="queryId" column="query_id"/>
+        <result property="fieldKey" column="field_key"/>
+        <result property="fieldName" column="field_name"/>
+        <result property="fieldLabel" column="field_label"/>
+        <result property="dataType" column="data_type"/>
+        <result property="isQuery" column="is_query"/>
+        <result property="queryType" column="query_type"/>
+        <result property="htmlType" column="html_type"/>
+        <result property="isList" column="is_list"/>
+        <result property="isSortable" column="is_sortable"/>
+        <result property="dictOptions" column="dict_options"/>
+        <result property="sort" column="sort"/>
+        <result property="width" column="width"/>
+        <result property="isRequired" column="is_required"/>
+        <result property="maskType" column="mask_type"/>
+    </resultMap>
+
+    <select id="selectFieldsByQueryId" parameterType="Long" resultMap="FieldResult">
+        select * from biz_query_field where query_id = #{queryId} order by sort, field_id
+    </select>
+
+    <insert id="insertField" parameterType="BizQueryField" useGeneratedKeys="true" keyProperty="fieldId">
+        insert into biz_query_field (query_id, field_key, field_name, field_label, data_type, is_query, query_type,
+            html_type, is_list, is_sortable, dict_options, sort, width, is_required, mask_type)
+        values (#{queryId}, #{fieldKey}, #{fieldName}, #{fieldLabel}, #{dataType}, #{isQuery}, #{queryType},
+            #{htmlType}, #{isList}, #{isSortable}, #{dictOptions}, #{sort}, #{width},
+            coalesce(#{isRequired}, '1'), coalesce(#{maskType}, 'none'))
+    </insert>
+
+    <insert id="batchInsertFields" parameterType="java.util.List">
+        insert into biz_query_field (query_id, field_key, field_name, field_label, data_type, is_query, query_type,
+            html_type, is_list, is_sortable, dict_options, sort, width, is_required, mask_type) values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.queryId}, #{item.fieldKey}, #{item.fieldName}, #{item.fieldLabel}, #{item.dataType}, #{item.isQuery},
+             #{item.queryType}, #{item.htmlType}, #{item.isList}, #{item.isSortable}, #{item.dictOptions}, #{item.sort}, #{item.width},
+             coalesce(#{item.isRequired}, '1'), coalesce(#{item.maskType}, 'none'))
+        </foreach>
+    </insert>
+
+    <update id="updateField" parameterType="BizQueryField">
+        update biz_query_field
+        <set>
+            <if test="fieldLabel != null">field_label = #{fieldLabel},</if>
+            <if test="dataType != null">data_type = #{dataType},</if>
+            <if test="isQuery != null">is_query = #{isQuery},</if>
+            <if test="queryType != null">query_type = #{queryType},</if>
+            <if test="htmlType != null">html_type = #{htmlType},</if>
+            <if test="isList != null">is_list = #{isList},</if>
+            <if test="isSortable != null">is_sortable = #{isSortable},</if>
+            <if test="dictOptions != null">dict_options = #{dictOptions},</if>
+            <if test="sort != null">sort = #{sort},</if>
+            <if test="width != null">width = #{width},</if>
+            <if test="isRequired != null">is_required = #{isRequired},</if>
+            <if test="maskType != null">mask_type = #{maskType},</if>
+        </set>
+        where field_id = #{fieldId}
+    </update>
+
+    <delete id="deleteByQueryId" parameterType="Long">
+        delete from biz_query_field where query_id = #{queryId}
+    </delete>
+</mapper>

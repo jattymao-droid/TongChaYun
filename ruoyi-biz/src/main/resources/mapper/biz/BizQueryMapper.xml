@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.biz.mapper.BizQueryMapper">
+
+    <resultMap type="BizQuery" id="BizQueryResult">
+        <id property="queryId" column="query_id"/>
+        <result property="queryName" column="query_name"/>
+        <result property="queryDesc" column="query_desc"/>
+        <result property="publicCode" column="public_code"/>
+        <result property="status" column="status"/>
+        <result property="sourceFile" column="source_file"/>
+        <result property="sheetName" column="sheet_name"/>
+        <result property="rowCount" column="row_count"/>
+        <result property="accessPwd" column="access_pwd"/>
+        <result property="viewCount" column="view_count"/>
+        <result property="searchCount" column="search_count"/>
+        <result property="parseStatus" column="parse_status"/>
+        <result property="parseMsg" column="parse_msg"/>
+        <result property="needCaptcha" column="need_captcha"/>
+        <result property="dailyLimit" column="daily_limit"/>
+        <result property="createUserId" column="create_user_id"/>
+        <result property="deptId" column="dept_id"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+        <result property="ownerName" column="owner_name"/>
+        <result property="ownerNickName" column="owner_nick_name"/>
+    </resultMap>
+
+    <sql id="selectVo">
+        select query_id, query_name, query_desc, public_code, status, source_file, sheet_name,
+               row_count, access_pwd, view_count, search_count, parse_status, parse_msg, need_captcha, daily_limit,
+               create_user_id, dept_id, create_by, create_time, update_by, update_time, remark,
+               null::varchar as owner_name, null::varchar as owner_nick_name
+        from biz_query
+    </sql>
+
+    <sql id="selectVoAlias">
+        select q.query_id, q.query_name, q.query_desc, q.public_code, q.status, q.source_file, q.sheet_name,
+               q.row_count, q.access_pwd, q.view_count, q.search_count, q.parse_status, q.parse_msg, q.need_captcha, q.daily_limit,
+               q.create_user_id, q.dept_id,
+               q.create_by, q.create_time, q.update_by, q.update_time, q.remark,
+               u.user_name as owner_name, u.nick_name as owner_nick_name
+        from biz_query q
+        left join sys_user u on u.user_id = q.create_user_id
+    </sql>
+
+    <select id="selectBizQueryById" parameterType="Long" resultMap="BizQueryResult">
+        <include refid="selectVo"/> where query_id = #{queryId}
+    </select>
+
+    <select id="selectBizQueryByCode" parameterType="String" resultMap="BizQueryResult">
+        <include refid="selectVo"/> where public_code = #{publicCode}
+    </select>
+
+    <select id="selectBizQueryList" parameterType="BizQuery" resultMap="BizQueryResult">
+        <include refid="selectVoAlias"/>
+        <where>
+            <if test="queryId != null">and q.query_id = #{queryId}</if>
+            <if test="queryName != null and queryName != ''">and q.query_name like concat('%', #{queryName}, '%')</if>
+            <if test="status != null and status != ''">and q.status = #{status}</if>
+            <if test="createUserId != null">and q.create_user_id = #{createUserId}</if>
+            <if test="createBy != null and createBy != ''">and (q.create_by like concat('%', #{createBy}, '%') or u.user_name like concat('%', #{createBy}, '%') or u.nick_name like concat('%', #{createBy}, '%'))</if>
+            <if test="publicCode != null and publicCode != ''">and q.public_code = #{publicCode}</if>
+            <if test="deptId != null">and q.dept_id = #{deptId}</if>
+            ${params.dataScope}
+        </where>
+        order by q.query_id desc
+    </select>
+
+    <insert id="insertBizQuery" parameterType="BizQuery" useGeneratedKeys="true" keyProperty="queryId">
+        insert into biz_query (
+            query_name, query_desc, public_code, status, source_file, sheet_name, row_count,
+            access_pwd, view_count, search_count, parse_status, parse_msg, need_captcha, daily_limit,
+            create_user_id, dept_id, create_by, create_time, remark
+        ) values (
+            #{queryName}, #{queryDesc}, #{publicCode}, #{status}, #{sourceFile}, #{sheetName}, #{rowCount},
+            #{accessPwd}, #{viewCount}, #{searchCount}, #{parseStatus}, #{parseMsg},
+            coalesce(#{needCaptcha}, '0'), coalesce(#{dailyLimit}, 0),
+            #{createUserId}, #{deptId}, #{createBy}, now(), #{remark}
+        )
+    </insert>
+
+    <update id="updateBizQuery" parameterType="BizQuery">
+        update biz_query
+        <set>
+            <if test="queryName != null">query_name = #{queryName},</if>
+            <if test="queryDesc != null">query_desc = #{queryDesc},</if>
+            <if test="publicCode != null">public_code = #{publicCode},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="sourceFile != null">source_file = #{sourceFile},</if>
+            <if test="sheetName != null">sheet_name = #{sheetName},</if>
+            <if test="rowCount != null">row_count = #{rowCount},</if>
+            <if test="accessPwd != null">access_pwd = #{accessPwd},</if>
+            <if test="viewCount != null">view_count = #{viewCount},</if>
+            <if test="searchCount != null">search_count = #{searchCount},</if>
+            <if test="parseStatus != null">parse_status = #{parseStatus},</if>
+            <if test="parseMsg != null">parse_msg = #{parseMsg},</if>
+            <if test="needCaptcha != null">need_captcha = #{needCaptcha},</if>
+            <if test="dailyLimit != null">daily_limit = #{dailyLimit},</if>
+            <if test="createUserId != null">create_user_id = #{createUserId},</if>
+            <if test="deptId != null">dept_id = #{deptId},</if>
+            <if test="createBy != null and createBy != ''">create_by = #{createBy},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            update_time = now()
+        </set>
+        where query_id = #{queryId}
+    </update>
+
+    <delete id="deleteBizQueryByIds" parameterType="Long">
+        delete from biz_query where query_id in
+        <foreach collection="array" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <update id="increaseViewCount" parameterType="Long">
+        update biz_query set view_count = coalesce(view_count, 0) + 1, update_time = now()
+        where query_id = #{queryId}
+    </update>
+
+    <update id="increaseSearchCount" parameterType="Long">
+        update biz_query set search_count = coalesce(search_count, 0) + 1, update_time = now()
+        where query_id = #{queryId}
+    </update>
+
+    <update id="transferOwner" parameterType="BizQuery">
+        update biz_query
+        set create_user_id = #{createUserId},
+            dept_id = #{deptId},
+            create_by = #{createBy},
+            update_by = #{updateBy},
+            update_time = now()
+        where query_id = #{queryId}
+    </update>
+</mapper>

@@ -1,0 +1,211 @@
+/* Template create dialog shared styles */
+.tpl-dialog.el-dialog {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.14);
+}
+
+.tpl-dialog .el-dialog__header {
+  padding: 20px 24px 8px;
+  border-bottom: none;
+}
+
+.tpl-dialog .el-dialog__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 0.01em;
+}
+
+.tpl-dialog .el-dialog__body {
+  padding: 8px 24px 24px;
+  background:
+    radial-gradient(ellipse 80% 50% at 0% 0%, rgba(43, 109, 229, 0.07), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(15, 118, 110, 0.05), transparent 50%),
+    #f8fafc;
+}
+
+.tpl-dialog .el-dialog__headerbtn {
+  top: 18px;
+  right: 18px;
+}
+
+.tpl-gallery .tpl-hint {
+  margin: 0 0 16px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.tpl-gallery .tpl-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  min-height: 120px;
+}
+
+.tpl-gallery .tpl-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+.tpl-gallery .tpl-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--tpl-accent, #2b6de5);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
+}
+
+.tpl-gallery .tpl-card:active {
+  transform: translateY(-1px);
+}
+
+.tpl-gallery .tpl-cover {
+  position: relative;
+  height: 92px;
+  padding: 16px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  background: var(--tpl-cover, linear-gradient(135deg, #e8f0fe 0%, #ffffff 72%));
+  border-bottom: 1px solid #f1f5f9;
+  overflow: hidden;
+}
+
+.tpl-gallery .tpl-cover::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.15) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 1px);
+  background-size: 18px 18px;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.tpl-gallery .tpl-cover::after {
+  content: '';
+  position: absolute;
+  right: -24px;
+  top: -36px;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.45);
+  pointer-events: none;
+}
+
+.tpl-gallery .tpl-icon {
+  position: relative;
+  z-index: 1;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: #fff;
+  background: var(--tpl-accent, #2b6de5);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.18);
+}
+
+.tpl-gallery .tpl-badge {
+  position: relative;
+  z-index: 1;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tpl-accent, #2b6de5);
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  border-radius: 999px;
+  padding: 3px 9px;
+  line-height: 1.3;
+  backdrop-filter: blur(4px);
+}
+
+.tpl-gallery .tpl-body {
+  padding: 14px 16px 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tpl-gallery .tpl-name {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 0.01em;
+}
+
+.tpl-gallery .tpl-desc {
+  margin: 0;
+  color: #64748b;
+  font-size: 12.5px;
+  line-height: 1.55;
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tpl-gallery .tpl-meta {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tpl-gallery .tpl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 11.5px;
+  line-height: 1.3;
+}
+
+.tpl-gallery .tpl-chip i {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.tpl-gallery .tpl-cta {
+  margin-top: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--tpl-accent, #2b6de5);
+  opacity: 0.88;
+  transition: opacity 0.15s, gap 0.15s;
+}
+
+.tpl-gallery .tpl-card:hover .tpl-cta {
+  opacity: 1;
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .tpl-gallery .tpl-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tpl-dialog.el-dialog {
+    width: 92% !important;
+  }
+}

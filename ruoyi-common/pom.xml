@@ -112,6 +112,12 @@
             <artifactId>yauaa</artifactId>
         </dependency>
 
+        <!-- 邮件发送 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
         <!-- servlet包 -->
         <dependency>
             <groupId>jakarta.servlet</groupId>

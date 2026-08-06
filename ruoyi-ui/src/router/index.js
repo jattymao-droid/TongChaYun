@@ -52,6 +52,11 @@ export const constantRoutes = [
     hidden: true
   },
   {
+    path: '/forgotPassword',
+    component: () => import('@/views/forgotPassword'),
+    hidden: true
+  },
+  {
     path: '/404',
     component: () => import('@/views/error/404'),
     hidden: true
@@ -59,6 +64,21 @@ export const constantRoutes = [
   {
     path: '/401',
     component: () => import('@/views/error/401'),
+    hidden: true
+  },
+  {
+    path: '/q/:code/result',
+    component: () => import('@/views/open/query-result'),
+    hidden: true
+  },
+  {
+    path: '/q/:code',
+    component: () => import('@/views/open/query'),
+    hidden: true
+  },
+  {
+    path: '/s/:code',
+    component: () => import('@/views/open/survey'),
     hidden: true
   },
   {
@@ -70,7 +90,7 @@ export const constantRoutes = [
         path: 'index',
         component: () => import('@/views/index'),
         name: 'Index',
-        meta: { title: '首页', icon: 'dashboard', affix: true }
+        meta: { title: '最近修改', icon: 'dashboard', affix: true }
       }
     ]
   },
@@ -165,6 +185,132 @@ export const dynamicRoutes = [
         component: () => import('@/views/tool/gen/editTable'),
         name: 'GenEdit',
         meta: { title: '修改生成配置', activeMenu: '/tool/gen' }
+      }
+    ]
+  },
+  {
+    path: '/biz/query-setup',
+    component: Layout,
+    hidden: true,
+    permissions: ['biz:query:edit'],
+    children: [
+      {
+        path: 'index/:queryId(\\d+)',
+        component: () => import('@/views/biz/query/setup'),
+        name: 'BizQuerySetup',
+        meta: { title: '查询设置向导', activeMenu: '/biz/query' }
+      }
+    ]
+  },
+  {
+    path: '/biz/query-fields',
+    component: Layout,
+    hidden: true,
+    permissions: ['biz:query:edit'],
+    children: [
+      {
+        path: 'index/:queryId(\\d+)',
+        component: () => import('@/views/biz/query/fields'),
+        name: 'BizQueryFields',
+        meta: { title: '字段配置', activeMenu: '/biz/query' }
+      }
+    ]
+  },
+  {
+    path: '/biz/query-page',
+    component: Layout,
+    hidden: true,
+    permissions: ['biz:query:edit'],
+    children: [
+      {
+        path: 'index/:queryId(\\d+)',
+        component: () => import('@/views/biz/query/page'),
+        name: 'BizQueryPage',
+        meta: { title: '页面设计', activeMenu: '/biz/query' }
+      }
+    ]
+  },
+  {
+    path: '/biz/query-preview',
+    component: Layout,
+    hidden: true,
+    permissions: ['biz:query:query'],
+    children: [
+      {
+        path: 'index/:queryId(\\d+)',
+        component: () => import('@/views/biz/query/preview'),
+        name: 'BizQueryPreview',
+        meta: { title: '查询预览', activeMenu: '/biz/query' }
+      }
+    ]
+  },
+  {
+    path: '/biz/survey-setup',
+    component: Layout,
+    hidden: true,
+    permissions: ['biz:survey:edit'],
+    children: [
+      {
+        path: 'index/:surveyId(\\d+)',
+        component: () => import('@/views/biz/survey/setup'),
+        name: 'BizSurveySetup',
+        meta: { title: '问卷设置向导', activeMenu: '/biz/survey' }
+      }
+    ]
+  },
+  {
+    path: '/biz/survey-design',
+    component: Layout,
+    hidden: true,
+    permissions: ['biz:survey:edit'],
+    children: [
+      {
+        path: 'index/:surveyId(\\d+)',
+        component: () => import('@/views/biz/survey/design'),
+        name: 'BizSurveyDesign',
+        meta: { title: '问卷设计', activeMenu: '/biz/survey' }
+      }
+    ]
+  },
+  {
+    path: '/biz/survey-answers',
+    component: Layout,
+    hidden: true,
+    permissions: ['biz:survey:query'],
+    children: [
+      {
+        path: 'index/:surveyId(\\d+)',
+        component: () => import('@/views/biz/survey/answers'),
+        name: 'BizSurveyAnswers',
+        meta: { title: '答卷列表', activeMenu: '/biz/survey' }
+      }
+    ]
+  },
+  {
+    path: '/biz/survey-stats',
+    component: Layout,
+    hidden: true,
+    permissions: ['biz:survey:query'],
+    children: [
+      {
+        path: 'index/:surveyId(\\d+)',
+        component: () => import('@/views/biz/survey/stats'),
+        name: 'BizSurveyStats',
+        meta: { title: '问卷统计', activeMenu: '/biz/survey' }
+      }
+    ]
+  },
+  {
+    path: '/biz/survey-preview',
+    component: Layout,
+    hidden: true,
+    permissions: ['biz:survey:query'],
+    children: [
+      {
+        path: 'index/:surveyId(\\d+)',
+        component: () => import('@/views/biz/survey/preview'),
+        name: 'BizSurveyPreview',
+        meta: { title: '问卷预览', activeMenu: '/biz/survey' }
       }
     ]
   }

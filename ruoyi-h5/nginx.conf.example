@@ -1,0 +1,26 @@
+# Example Nginx config for 通查云 H5 under /h5/
+# Adjust upstream and SSL to your environment.
+
+upstream tongchayun_api {
+    server 127.0.0.1:8080;
+}
+
+server {
+    listen 80;
+    server_name example.com;
+
+    # Independent H5 (build with VITE_BASE=/h5/ and VITE_APP_BASE_API=/prod-api)
+    location /h5/ {
+        alias /var/www/tongchayun-h5/;
+        try_files $uri $uri/ /h5/index.html;
+    }
+
+    # Backend API (shared with ruoyi-ui)
+    location /prod-api/ {
+        proxy_pass http://tongchayun_api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

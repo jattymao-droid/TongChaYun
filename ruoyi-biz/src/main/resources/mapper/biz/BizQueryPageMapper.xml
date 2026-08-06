@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.biz.mapper.BizQueryPageMapper">
+
+    <resultMap type="BizQueryPage" id="PageResult">
+        <id property="pageId" column="page_id"/>
+        <result property="queryId" column="query_id"/>
+        <result property="title" column="title"/>
+        <result property="subtitle" column="subtitle"/>
+        <result property="themeColor" column="theme_color"/>
+        <result property="bannerUrl" column="banner_url"/>
+        <result property="layoutJson" column="layout_json"/>
+        <result property="resultTips" column="result_tips"/>
+    </resultMap>
+
+    <select id="selectByQueryId" parameterType="Long" resultMap="PageResult">
+        select * from biz_query_page where query_id = #{queryId} limit 1
+    </select>
+
+    <insert id="insertPage" parameterType="BizQueryPage" useGeneratedKeys="true" keyProperty="pageId">
+        insert into biz_query_page (query_id, title, subtitle, theme_color, banner_url, layout_json, result_tips)
+        values (#{queryId}, #{title}, #{subtitle}, #{themeColor}, #{bannerUrl}, #{layoutJson}, #{resultTips})
+    </insert>
+
+    <update id="updatePage" parameterType="BizQueryPage">
+        update biz_query_page
+        <set>
+            <if test="title != null">title = #{title},</if>
+            <if test="subtitle != null">subtitle = #{subtitle},</if>
+            <if test="themeColor != null">theme_color = #{themeColor},</if>
+            <if test="bannerUrl != null">banner_url = #{bannerUrl},</if>
+            <if test="layoutJson != null">layout_json = #{layoutJson},</if>
+            <if test="resultTips != null">result_tips = #{resultTips},</if>
+        </set>
+        where query_id = #{queryId}
+    </update>
+
+    <delete id="deleteByQueryId" parameterType="Long">
+        delete from biz_query_page where query_id = #{queryId}
+    </delete>
+</mapper>

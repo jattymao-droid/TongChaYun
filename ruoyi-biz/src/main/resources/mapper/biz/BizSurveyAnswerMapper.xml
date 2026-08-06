@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.biz.mapper.BizSurveyAnswerMapper">
+
+    <resultMap type="BizSurveyAnswer" id="AnswerResult">
+        <id property="answerId" column="answer_id"/>
+        <result property="surveyId" column="survey_id"/>
+        <result property="submitIp" column="submit_ip"/>
+        <result property="submitUa" column="submit_ua"/>
+        <result property="submitTime" column="submit_time"/>
+        <result property="costMs" column="cost_ms"/>
+        <result property="channelCode" column="channel_code"/>
+        <result property="clientToken" column="client_token"/>
+        <result property="validFlag" column="valid_flag"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <select id="selectAnswerList" parameterType="BizSurveyAnswer" resultMap="AnswerResult">
+        select answer_id, survey_id, submit_ip, submit_ua, submit_time, cost_ms, channel_code, client_token,
+               coalesce(valid_flag, '1') as valid_flag, remark
+        from biz_survey_answer
+        <where>
+            <if test="surveyId != null">and survey_id = #{surveyId}</if>
+            <if test="channelCode != null and channelCode != ''">and channel_code = #{channelCode}</if>
+            <if test="submitIp != null and submitIp != ''">and submit_ip like concat('%', #{submitIp}, '%')</if>
+            <if test="validFlag != null and validFlag != ''">and coalesce(valid_flag, '1') = #{validFlag}</if>
+            <if test="params != null and params.beginTime != null and params.beginTime != ''">
+                and to_char(submit_time, 'YYYYMMDD') &gt;= to_char(#{params.beginTime}::timestamp, 'YYYYMMDD')
+            </if>
+            <if test="params != null and params.endTime != null and params.endTime != ''">
+                and to_char(submit_time, 'YYYYMMDD') &lt;= to_char(#{params.endTime}::timestamp, 'YYYYMMDD')
+            </if>
+        </where>
+        order by answer_id desc
+    </select>
+
+    <select id="selectAnswerById" parameterType="Long" resultMap="AnswerResult">
+        select answer_id, survey_id, submit_ip, submit_ua, submit_time, cost_ms, channel_code, client_token,
+               coalesce(valid_flag, '1') as valid_flag, remark
+        from biz_survey_answer where answer_id = #{answerId}
+    </select>
+
+    <insert id="insertAnswer" parameterType="BizSurveyAnswer" useGeneratedKeys="true" keyProperty="answerId">
+        insert into biz_survey_answer (survey_id, submit_ip, submit_ua, submit_time, cost_ms, channel_code, client_token, valid_flag, remark)
+        values (#{surveyId}, #{submitIp}, #{submitUa}, now(), #{costMs}, #{channelCode}, #{clientToken},
+                coalesce(#{validFlag}, '1'), #{remark})
+    </insert>
+
+    <update id="updateAnswerMeta" parameterType="BizSurveyAnswer">
+        update biz_survey_answer
+        <set>
+            <if test="validFlag != null and validFlag != ''">valid_flag = #{validFlag},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </set>
+        where answer_id = #{answerId}
+    </update>
+
+    <delete id="deleteBySurveyId" parameterType="Long">
+        delete from biz_survey_answer where survey_id = #{surveyId}
+    </delete>
+
+    <select id="countBySurveyId" parameterType="Long" resultType="long">
+        select count(1) from biz_survey_answer where survey_id = #{surveyId}
+    </select>
+
+    <select id="countValidBySurveyId" parameterType="Long" resultType="long">
+        select count(1) from biz_survey_answer
+        where survey_id = #{surveyId} and coalesce(valid_flag, '1') &lt;&gt; '0'
+    </select>
+
+    <select id="countBySurveyIdAndIp" resultType="long">
+        select count(1) from biz_survey_answer
+        where survey_id = #{surveyId} and submit_ip = #{submitIp}
+    </select>
+
+    <select id="countBySurveyIdAndClientToken" resultType="long">
+        select count(1) from biz_survey_answer
+        where survey_id = #{surveyId} and client_token = #{clientToken}
+    </select>
+
+    <select id="countTodayBySurveyId" parameterType="Long" resultType="long">
+        select count(1) from biz_survey_answer
+        where survey_id = #{surveyId}
+          and submit_time &gt;= date_trunc('day', now())
+    </select>
+
+    <select id="selectChannelStats" parameterType="Long" resultType="java.util.HashMap">
+        select coalesce(nullif(trim(channel_code), ''), '(默认)') as "channelCode",
+               count(1) as "count"
+        from biz_survey_answer
+        where survey_id = #{surveyId}
+          and coalesce(valid_flag, '1') &lt;&gt; '0'
+        group by coalesce(nullif(trim(channel_code), ''), '(默认)')
+        order by count(1) desc
+    </select>
+
+    <select id="selectDailyStats" parameterType="Long" resultType="java.util.HashMap">
+        select to_char(submit_time, 'YYYY-MM-DD') as "date",
+               count(1) as "count"
+        from biz_survey_answer
+        where survey_id = #{surveyId}
+          and coalesce(valid_flag, '1') &lt;&gt; '0'
+          and submit_time is not null
+        group by to_char(submit_time, 'YYYY-MM-DD')
+        order by to_char(submit_time, 'YYYY-MM-DD') asc
+    </select>
+</mapper>

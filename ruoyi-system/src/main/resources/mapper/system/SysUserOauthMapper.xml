@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.system.mapper.SysUserOauthMapper">
+
+    <resultMap type="com.ruoyi.system.domain.SysUserOauth" id="SysUserOauthResult">
+        <id     property="id"         column="id" />
+        <result property="userId"     column="user_id" />
+        <result property="provider"   column="provider" />
+        <result property="openId"     column="open_id" />
+        <result property="unionId"    column="union_id" />
+        <result property="nickname"   column="nickname" />
+        <result property="avatar"     column="avatar" />
+        <result property="createTime" column="create_time" />
+        <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <select id="selectByProviderOpenId" resultMap="SysUserOauthResult">
+        select id, user_id, provider, open_id, union_id, nickname, avatar, create_time, update_time
+        from biz_user_oauth
+        where provider = #{provider} and open_id = #{openId}
+        limit 1
+    </select>
+
+    <insert id="insertOauth" parameterType="com.ruoyi.system.domain.SysUserOauth" useGeneratedKeys="true" keyProperty="id">
+        insert into biz_user_oauth (user_id, provider, open_id, union_id, nickname, avatar, create_time)
+        values (#{userId}, #{provider}, #{openId}, #{unionId}, #{nickname}, #{avatar}, now())
+    </insert>
+
+    <update id="updateOauth" parameterType="com.ruoyi.system.domain.SysUserOauth">
+        update biz_user_oauth
+        <set>
+            <if test="nickname != null">nickname = #{nickname},</if>
+            <if test="avatar != null">avatar = #{avatar},</if>
+            <if test="unionId != null">union_id = #{unionId},</if>
+            update_time = now()
+        </set>
+        where id = #{id}
+    </update>
+</mapper>

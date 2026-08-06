@@ -144,4 +144,9 @@ public interface SysUserMapper
      * @return 结果
      */
     public SysUser checkEmailUnique(String email);
+
+    /**
+     * 按邮箱查询用户（未删除）
+     */
+    public SysUser selectUserByEmail(String email);
 }

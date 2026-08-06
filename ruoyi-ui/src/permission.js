@@ -9,7 +9,7 @@ import { isRelogin } from '@/utils/request'
 
 NProgress.configure({ showSpinner: false })
 
-const whiteList = ['/login', '/register']
+const whiteList = ['/login', '/register', '/forgotPassword', '/q/*', '/s/*']
 
 const isWhiteList = (path) => {
   return whiteList.some(pattern => isPathMatch(pattern, path))
@@ -58,6 +58,10 @@ router.beforeEach((to, from, next) => {
     if (isWhiteList(to.path)) {
       // 在免登录白名单，直接进入
       next()
+    } else if (to.path === '/' || to.path === '/index') {
+      // 访问首页时进入落地页，不带 redirect，避免自动弹出登录框
+      next('/login')
+      NProgress.done()
     } else {
       next(`/login?redirect=${encodeURIComponent(to.fullPath)}`) // 否则全部重定向到登录页
       NProgress.done()

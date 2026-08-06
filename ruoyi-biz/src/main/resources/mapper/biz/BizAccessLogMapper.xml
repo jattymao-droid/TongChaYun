@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.biz.mapper.BizAccessLogMapper">
+
+    <resultMap type="BizAccessLog" id="AccessLogResult">
+        <id property="logId" column="log_id"/>
+        <result property="targetType" column="target_type"/>
+        <result property="targetId" column="target_id"/>
+        <result property="publicCode" column="public_code"/>
+        <result property="action" column="action"/>
+        <result property="clientIp" column="client_ip"/>
+        <result property="userAgent" column="user_agent"/>
+        <result property="detailJson" column="detail_json"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <insert id="insertAccessLog" parameterType="BizAccessLog" useGeneratedKeys="true" keyProperty="logId">
+        insert into biz_access_log (target_type, target_id, public_code, action, client_ip, user_agent, detail_json, create_time)
+        values (#{targetType}, #{targetId}, #{publicCode}, #{action}, #{clientIp}, #{userAgent}, #{detailJson}, now())
+    </insert>
+
+    <select id="countDistinctIp" resultType="Long">
+        select count(distinct l.client_ip)
+        from biz_access_log l
+        <choose>
+            <when test="targetType == 'query'">
+                inner join biz_query q on q.query_id = l.target_id
+                <if test="createUserId != null">and q.create_user_id = #{createUserId}</if>
+            </when>
+            <when test="targetType == 'survey'">
+                inner join biz_survey s on s.survey_id = l.target_id
+                <if test="createUserId != null">and s.create_user_id = #{createUserId}</if>
+            </when>
+        </choose>
+        where l.target_type = #{targetType}
+          and l.action = #{action}
+          and l.client_ip is not null
+          and l.client_ip &lt;&gt; ''
+        <if test="todayOnly">
+          and l.create_time &gt;= current_date
+        </if>
+    </select>
+
+    <select id="selectByTarget" resultMap="AccessLogResult">
+        select log_id, target_type, target_id, public_code, action, client_ip, user_agent, detail_json, create_time
+        from biz_access_log
+        where target_type = #{targetType}
+          and target_id = #{targetId}
+        <if test="action != null and action != ''">
+          and action = #{action}
+        </if>
+        order by create_time desc, log_id desc
+        limit #{limit}
+    </select>
+</mapper>

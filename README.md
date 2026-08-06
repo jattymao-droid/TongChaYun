@@ -32,6 +32,20 @@
 
 本仓库是在官方 [RuoYi-Vue](https://gitee.com/y_project/RuoYi-Vue) 基础上改造的版本，将默认 **MySQL** 替换为 **PostgreSQL**，保留若依完整的权限、代码生成与系统管理能力，适合本地开发与二次扩展。
 
+---
+
+## 🎯 通查云 业务扩展（本仓库）
+
+在 PostgreSQL 版 RuoYi 上增加了 **查询系统 + 问卷系统**（模块 `ruoyi-biz`）：
+
+- 管理端：业务看板、查询/问卷 CRUD、拖拽设计、统计图表、复制、Webhook、站内答卷通知
+- 公开端：`/q/{code}` 查询 · `/s/{code}` 问卷（免登录，限流）
+- 文档：[dev.md](./dev.md) · [development-plan.md](./development-plan.md) · [docs/DEMO.md](./docs/DEMO.md)
+- 增量 SQL：`sql/biz_postgresql.sql` 及 `sql/biz_phase*.sql`
+- 冒烟：`./scripts/smoke_biz.sh`
+- 独立 H5：`ruoyi-h5/`（`npm run dev` → `http://127.0.0.1:5173`）
+
+
 | 项目 | 说明 |
 | :--- | :--- |
 | 仓库地址 | https://gitee.com/jatty01/ruoyi-vue-postgresql-version |

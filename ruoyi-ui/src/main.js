@@ -75,6 +75,8 @@ Vue.use(Element, {
 
 Vue.config.productionTip = false
 
+store.dispatch('settings/loadSiteInfo')
+
 new Vue({
   el: '#app',
   router,

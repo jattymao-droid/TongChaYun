@@ -2,7 +2,7 @@ import store from '@/store'
 import router from '@/router'
 import cache from '@/plugins/cache'
 import { MessageBox } from 'element-ui'
-import { login, logout, getInfo } from '@/api/login'
+import { login, logout, getInfo, exchangeOauthTicket } from '@/api/login'
 import { getToken, setToken, removeToken } from '@/utils/auth'
 import { isHttp, isEmpty } from "@/utils/validate"
 import defAva from '@/assets/images/profile.jpg'
@@ -51,6 +51,20 @@ const user = {
       const uuid = userInfo.uuid
       return new Promise((resolve, reject) => {
         login(username, password, code, uuid).then(res => {
+          setToken(res.token)
+          commit('SET_TOKEN', res.token)
+          store.dispatch('lock/unlockScreen')
+          resolve()
+        }).catch(error => {
+          reject(error)
+        })
+      })
+    },
+
+    // 第三方 OAuth ticket 换票
+    OauthLoginByTicket({ commit }, ticket) {
+      return new Promise((resolve, reject) => {
+        exchangeOauthTicket(ticket).then(res => {
           setToken(res.token)
           commit('SET_TOKEN', res.token)
           store.dispatch('lock/unlockScreen')

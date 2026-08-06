@@ -54,6 +54,12 @@
             <artifactId>ruoyi-generator</artifactId>
         </dependency>
 
+        <!-- 业务模块（查询/问卷）-->
+        <dependency>
+            <groupId>com.ruoyi</groupId>
+            <artifactId>ruoyi-biz</artifactId>
+        </dependency>
+
     </dependencies>
 
     <build>

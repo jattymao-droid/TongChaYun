@@ -2,8 +2,8 @@
   <div :class="classObj" class="app-wrapper" :style="{'--current-color': theme, '--current-color-light': theme + '1a', '--current-color-dark-bg': theme + '33'}">
     <div v-if="device==='mobile'&&sidebar.opened" class="drawer-bg" @click="handleClickOutside"/>
     <sidebar v-if="!sidebar.hide" class="sidebar-container"/>
-    <div :class="{hasTagsView:needTagsView,sidebarHide:sidebar.hide}" class="main-container">
-      <div :class="{'fixed-header':fixedHeader}">
+    <div :class="{hasTagsView:needTagsView,sidebarHide:sidebar.hide}" class="main-container" :style="mainContainerStyle">
+      <div ref="fixedHeaderEl" :class="{'fixed-header':fixedHeader}">
         <navbar @setLayout="setLayout"/>
         <tags-view v-if="needTagsView"/>
       </div>
@@ -29,6 +29,11 @@ export default {
     TagsView
   },
   mixins: [ResizeMixin],
+  data() {
+    return {
+      fixedHeaderHeight: 0
+    }
+  },
   computed: {
     ...mapState({
       theme: state => state.settings.theme,
@@ -48,6 +53,35 @@ export default {
     },
     variables() {
       return variables
+    },
+    mainContainerStyle() {
+      const fallback = this.needTagsView ? 90 : 50
+      const h = this.fixedHeaderHeight || fallback
+      return { '--fixed-header-height': h + 'px' }
+    }
+  },
+  watch: {
+    needTagsView() {
+      this.$nextTick(() => this.updateFixedHeaderHeight())
+    },
+    fixedHeader() {
+      this.$nextTick(() => this.updateFixedHeaderHeight())
+    }
+  },
+  mounted() {
+    this.$nextTick(() => {
+      this.updateFixedHeaderHeight()
+      const el = this.$refs.fixedHeaderEl
+      if (el && typeof ResizeObserver !== 'undefined') {
+        this._headerResizeObserver = new ResizeObserver(() => this.updateFixedHeaderHeight())
+        this._headerResizeObserver.observe(el)
+      }
+    })
+  },
+  beforeDestroy() {
+    if (this._headerResizeObserver) {
+      this._headerResizeObserver.disconnect()
+      this._headerResizeObserver = null
     }
   },
   methods: {
@@ -56,6 +90,14 @@ export default {
     },
     setLayout() {
       this.$refs.settingRef.openSetting()
+    },
+    updateFixedHeaderHeight() {
+      const el = this.$refs.fixedHeaderEl
+      if (!el) {
+        this.fixedHeaderHeight = 0
+        return
+      }
+      this.fixedHeaderHeight = Math.ceil(el.getBoundingClientRect().height)
     }
   }
 }

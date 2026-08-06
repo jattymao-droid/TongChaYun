@@ -10,32 +10,27 @@
     </template>
     <div class="right-menu">
       <template v-if="device!=='mobile'">
-        <search id="header-search" class="right-menu-item" />
+        <div class="right-tools">
+          <search id="header-search" class="right-menu-item hover-effect" />
 
-        <el-tooltip content="源码地址" effect="dark" placement="bottom">
-          <ruo-yi-git id="ruoyi-git" class="right-menu-item hover-effect" />
-        </el-tooltip>
+          <screenfull id="screenfull" class="right-menu-item hover-effect" />
 
-        <el-tooltip content="文档地址" effect="dark" placement="bottom">
-          <ruo-yi-doc id="ruoyi-doc" class="right-menu-item hover-effect" />
-        </el-tooltip>
+          <el-tooltip content="布局大小" effect="dark" placement="bottom">
+            <size-select id="size-select" class="right-menu-item hover-effect" />
+          </el-tooltip>
 
-        <screenfull id="screenfull" class="right-menu-item hover-effect" />
-
-        <el-tooltip content="布局大小" effect="dark" placement="bottom">
-          <size-select id="size-select" class="right-menu-item hover-effect" />
-        </el-tooltip>
-
-        <el-tooltip content="消息通知" effect="dark" placement="bottom">
-          <header-notice id="header-notice" class="right-menu-item hover-effect" />
-        </el-tooltip>
-
+          <el-tooltip content="消息通知" effect="dark" placement="bottom">
+            <header-notice id="header-notice" class="notice-entry" />
+          </el-tooltip>
+        </div>
+        <span class="right-divider" aria-hidden="true" />
       </template>
 
       <el-dropdown class="avatar-container right-menu-item hover-effect" trigger="hover">
         <div class="avatar-wrapper">
-          <img :src="avatar" class="user-avatar">
-          <span class="user-nickname"> {{ nickName }} </span>
+          <img :src="avatar" class="user-avatar" alt="">
+          <span class="user-nickname">{{ nickName }}</span>
+          <i class="el-icon-arrow-down user-caret" />
         </div>
         <el-dropdown-menu slot="dropdown">
           <router-link to="/user/profile">
@@ -66,8 +61,6 @@ import Hamburger from '@/components/Hamburger'
 import Screenfull from '@/components/Screenfull'
 import SizeSelect from '@/components/SizeSelect'
 import Search from '@/components/HeaderSearch'
-import RuoYiGit from '@/components/RuoYi/Git'
-import RuoYiDoc from '@/components/RuoYi/Doc'
 import HeaderNotice from './HeaderNotice'
 
 export default {
@@ -80,8 +73,6 @@ export default {
     Screenfull,
     SizeSelect,
     Search,
-    RuoYiGit,
-    RuoYiDoc,
     HeaderNotice
   },
   computed: {
@@ -147,14 +138,14 @@ export default {
   overflow: hidden;
   position: relative;
   background: #fff;
-  box-shadow: 0 1px 4px rgba(0,21,41,.08);
+  box-shadow: 0 1px 4px rgba(0,21,41,.06);
   display: flex;
   align-items: center;
-  // padding: 0 8px;
+  padding: 0 8px 0 0;
   box-sizing: border-box;
 
   .hamburger-container {
-    line-height: 46px;
+    line-height: 50px;
     height: 100%;
     cursor: pointer;
     transition: background .3s;
@@ -162,7 +153,8 @@ export default {
     display: flex;
     align-items: center;
     flex-shrink: 0;
-    margin-right: 8px;
+    margin-right: 4px;
+    padding: 0 12px;
 
     &:hover {
       background: rgba(0, 0, 0, .025)
@@ -171,6 +163,7 @@ export default {
 
   .breadcrumb-container {
     flex-shrink: 0;
+    min-width: 0;
   }
 
   .topmenu-container {
@@ -189,66 +182,115 @@ export default {
 
   .right-menu {
     height: 100%;
-    line-height: 50px;
     display: flex;
     align-items: center;
     margin-left: auto;
+    padding-right: 12px;
+    gap: 4px;
 
     &:focus {
       outline: none;
     }
 
-    .right-menu-item {
-      display: inline-block;
-      padding: 0 8px;
+    .right-tools {
+      display: flex;
+      align-items: center;
+      gap: 4px;
       height: 100%;
+    }
+
+    .right-divider {
+      width: 1px;
+      height: 20px;
+      margin: 0 10px 0 8px;
+      background: #e5e7eb;
+      flex-shrink: 0;
+    }
+
+    .notice-entry {
+      display: inline-flex;
+      align-items: center;
+      margin: 0 2px;
+    }
+
+    .right-menu-item {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 36px;
+      height: 36px;
+      padding: 0 8px;
+      margin: 0 2px;
+      border-radius: 8px;
       font-size: 18px;
       color: #5a5e66;
-      vertical-align: text-bottom;
+      line-height: 1;
+      box-sizing: border-box;
 
       &.hover-effect {
         cursor: pointer;
-        transition: background .3s;
+        transition: background .2s, color .2s;
 
         &:hover {
-          background: rgba(0, 0, 0, .025)
+          background: #f3f4f6;
+          color: #303133;
         }
       }
     }
 
     .avatar-container {
-      margin-right: 0px;
-      padding-right: 0px;
+      margin: 0 0 0 2px;
+      padding: 0 6px 0 8px;
+      min-width: auto;
+      height: 40px;
+      border-radius: 20px;
+
+      &.hover-effect:hover {
+        background: #f3f4f6;
+      }
 
       .avatar-wrapper {
-        margin-top: 10px;
-        right: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 100%;
         position: relative;
 
         .user-avatar {
           cursor: pointer;
-          width: 30px;
-          height: 30px;
+          width: 28px;
+          height: 28px;
           border-radius: 50%;
+          flex-shrink: 0;
+          object-fit: cover;
         }
 
-        .user-nickname{
-          position: relative;
-          bottom: 10px;
-          left: 2px;
-          font-size: 14px;
-          font-weight: bold;
+        .user-nickname {
+          max-width: 88px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-size: 13px;
+          font-weight: 600;
+          color: #303133;
+          line-height: 1;
         }
 
-        .el-icon-caret-bottom {
-          cursor: pointer;
-          position: absolute;
-          right: -20px;
-          top: 25px;
+        .user-caret {
           font-size: 12px;
+          color: #909399;
+          margin-left: -2px;
         }
       }
     }
+  }
+}
+
+.biz-notify {
+  display: inline-flex !important;
+  align-items: center;
+  ::v-deep .el-badge__content {
+    top: 10px;
   }
 }
 </style>
