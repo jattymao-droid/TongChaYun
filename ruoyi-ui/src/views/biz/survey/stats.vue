@@ -57,6 +57,127 @@
       </el-col>
     </el-row>
 
+    <el-card shadow="never" class="mb16 answer-matrix-card">
+      <div slot="header" class="matrix-head">
+        <span>答题列表<span class="sub">（每人一行）</span></span>
+        <div class="matrix-tools">
+          <el-radio-group v-model="matrixValidFlag" size="mini" @change="onMatrixFilterChange">
+            <el-radio-button label="1">有效</el-radio-button>
+            <el-radio-button label="0">无效</el-radio-button>
+            <el-radio-button label="all">全部</el-radio-button>
+          </el-radio-group>
+          <el-button size="mini" icon="el-icon-refresh" :loading="matrixLoading" @click="loadMatrix">刷新</el-button>
+        </div>
+      </div>
+      <div v-loading="matrixLoading">
+        <el-table
+          v-if="matrixRows.length"
+          :data="matrixRows"
+          size="mini"
+          border
+          class="matrix-table"
+          max-height="520"
+        >
+          <el-table-column label="#" prop="label" width="64" fixed align="center" />
+          <el-table-column label="状态" width="72" fixed align="center">
+            <template slot-scope="scope">
+              <el-tag size="mini" :type="scope.row.validFlag === '0' ? 'info' : 'success'">
+                {{ scope.row.validFlag === '0' ? '无效' : '有效' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="提交时间" prop="submitTime" width="160" fixed />
+          <el-table-column label="渠道" prop="channelCode" width="90" align="center">
+            <template slot-scope="scope">{{ scope.row.channelCode || '-' }}</template>
+          </el-table-column>
+          <el-table-column
+            v-for="col in matrixColumns"
+            :key="col.questionId"
+            :label="col.title"
+            min-width="140"
+            :show-overflow-tooltip="col.qType !== 'agreement' && col.qType !== 'signature' && col.qType !== 'file'"
+          >
+            <template slot="header">
+              <span>{{ col.title }}</span>
+              <el-tag size="mini" type="info" class="ml6">{{ typeLabel(col.qType) }}</el-tag>
+            </template>
+            <template slot-scope="scope">
+              <template v-if="col.qType === 'agreement'">
+                <el-button type="text" size="mini" @click="openAgreement(scope.row, col)">查看协议</el-button>
+                <span class="cell-agree">{{ cellDisplay(scope.row, col) || '-' }}</span>
+              </template>
+              <template v-else-if="col.qType === 'signature'">
+                <img
+                  v-if="cellMediaUrl(scope.row, col)"
+                  :src="cellMediaUrl(scope.row, col)"
+                  class="sig-thumb"
+                  alt="signature"
+                  @click="previewImage(cellMediaUrl(scope.row, col))"
+                />
+                <span v-else>-</span>
+              </template>
+              <template v-else-if="col.qType === 'file'">
+                <a
+                  v-if="cellMediaUrl(scope.row, col)"
+                  :href="cellMediaUrl(scope.row, col)"
+                  target="_blank"
+                  rel="noopener"
+                >{{ cellFileName(scope.row, col) || '附件' }}</a>
+                <span v-else>-</span>
+              </template>
+              <span v-else>{{ cellDisplay(scope.row, col) || '-' }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="80" fixed="right" align="center">
+            <template slot-scope="scope">
+              <el-button type="text" size="mini" @click="goAnswerDetail(scope.row.answerId)">详情</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+        <el-empty v-else-if="!matrixLoading" description="暂无答卷" :image-size="60" />
+        <pagination
+          v-show="matrixTotal > 0"
+          :total="matrixTotal"
+          :page.sync="matrixPageNum"
+          :limit.sync="matrixPageSize"
+          :page-sizes="[10, 20, 30, 50]"
+          @pagination="loadMatrix"
+        />
+      </div>
+    </el-card>
+
+    <el-dialog
+      :title="agreeDialog.title || '协议详情'"
+      :visible.sync="agreeDialog.open"
+      width="720px"
+      append-to-body
+      class="agree-dialog"
+    >
+      <div v-if="agreeDialog.open" class="agree-view">
+        <div class="agree-meta">
+          <span>答卷 {{ agreeDialog.label }}</span>
+          <span v-if="agreeDialog.submitTime"> · {{ agreeDialog.submitTime }}</span>
+          <el-tag size="mini" :type="agreeDialog.agreed ? 'success' : 'info'" class="ml6">
+            {{ agreeDialog.agreed ? (agreeDialog.agreeLabel || '已同意') : '未同意' }}
+          </el-tag>
+        </div>
+        <div class="agree-body" v-html="agreeDialog.content || '<p>暂无协议正文</p>'" />
+        <div
+          v-for="sig in agreeDialog.signatures"
+          :key="sig.questionId"
+          class="agree-sign-block"
+        >
+          <div class="agree-sign-title">{{ sig.title || '手写签名' }}</div>
+          <img v-if="sig.url" :src="sig.url" class="agree-sign-img" alt="signature" @click="previewImage(sig.url)" />
+          <div v-else class="agree-sign-empty">未签名</div>
+        </div>
+      </div>
+    </el-dialog>
+
+    <el-dialog :visible.sync="imgPreview.open" width="640px" append-to-body title="预览">
+      <img v-if="imgPreview.url" :src="imgPreview.url" class="preview-full" alt="preview" />
+    </el-dialog>
+
     <el-card shadow="never" class="mb16" v-if="choiceQuestions.length >= 2">
       <div slot="header">交叉分析</div>
       <el-form :inline="true" size="small" class="mb12">
@@ -165,7 +286,7 @@
 <script>
 import * as echarts from 'echarts'
 require('echarts/theme/macarons')
-import { getSurveyStats, getSurveyCrossStats, exportSurveyStats } from '@/api/biz/survey'
+import { getSurveyStats, getSurveyCrossStats, getSurveyAnswerMatrix, exportSurveyStats } from '@/api/biz/survey'
 import { blobValidate } from '@/utils/ruoyi'
 import { saveAs } from 'file-saver'
 
@@ -192,7 +313,9 @@ const TYPE_LABELS = {
   file: '附件',
   email: '邮箱',
   url: '网址',
-  idcard: '身份证'
+  idcard: '身份证',
+  agreement: '协议同意',
+  signature: '手写签名'
 }
 
 export default {
@@ -208,7 +331,25 @@ export default {
       crossQ2: null,
       cross: null,
       crossLoading: false,
-      crossLoaded: false
+      crossLoaded: false,
+      matrixLoading: false,
+      matrixValidFlag: '1',
+      matrixPageNum: 1,
+      matrixPageSize: 20,
+      matrixTotal: 0,
+      matrixColumns: [],
+      matrixRows: [],
+      agreeDialog: {
+        open: false,
+        title: '',
+        label: '',
+        submitTime: '',
+        content: '',
+        agreeLabel: '',
+        agreed: false,
+        signatures: []
+      },
+      imgPreview: { open: false, url: '' }
     }
   },
   computed: {
@@ -269,8 +410,83 @@ export default {
     goAnswers() {
       this.$router.push('/biz/survey-answers/index/' + this.surveyId)
     },
+    goAnswerDetail(answerId) {
+      this.$router.push({
+        path: '/biz/survey-answers/index/' + this.surveyId,
+        query: { answerId }
+      })
+    },
+    cellOf(row, col) {
+      if (!row || !col || !row.cells) return null
+      return row.cells[String(col.questionId)] || null
+    },
+    cellDisplay(row, col) {
+      const c = this.cellOf(row, col)
+      return c && c.display != null ? c.display : ''
+    },
+    cellMediaUrl(row, col) {
+      const c = this.cellOf(row, col)
+      if (!c || !c.url) return ''
+      const path = String(c.url)
+      if (path.startsWith('http') || path.startsWith('data:')) return path
+      return process.env.VUE_APP_BASE_API + path
+    },
+    cellFileName(row, col) {
+      const c = this.cellOf(row, col)
+      return (c && (c.fileName || c.display)) || '附件'
+    },
+    mediaUrlFromCell(cell) {
+      if (!cell || !cell.url) return ''
+      const path = String(cell.url)
+      if (path.startsWith('http') || path.startsWith('data:')) return path
+      return process.env.VUE_APP_BASE_API + path
+    },
+    openAgreement(row, col) {
+      const cell = this.cellOf(row, col)
+      const agreed = cell && (cell.raw === '1' || cell.display === '已同意')
+      const signatures = (col.boundSignatures || []).map(sig => {
+        const sc = row.cells && row.cells[String(sig.questionId)]
+        return {
+          questionId: sig.questionId,
+          title: sig.title,
+          url: this.mediaUrlFromCell(sc)
+        }
+      })
+      this.agreeDialog = {
+        open: true,
+        title: col.title || '协议详情',
+        label: row.label || ('#' + row.answerId),
+        submitTime: row.submitTime || '',
+        content: col.content || '',
+        agreeLabel: col.agreeLabel || '我已阅读并同意',
+        agreed: !!agreed,
+        signatures
+      }
+    },
+    previewImage(url) {
+      if (!url) return
+      this.imgPreview = { open: true, url }
+    },
+    onMatrixFilterChange() {
+      this.matrixPageNum = 1
+      this.loadMatrix()
+    },
     sampleRows(q) {
       return (q.samples || []).map(v => ({ value: v }))
+    },
+    loadMatrix() {
+      if (!this.surveyId) return
+      this.matrixLoading = true
+      getSurveyAnswerMatrix(this.surveyId, {
+        pageNum: this.matrixPageNum,
+        pageSize: this.matrixPageSize,
+        validFlag: this.matrixValidFlag
+      }).then(res => {
+        const data = res.data || {}
+        this.matrixTotal = Number(data.total) || 0
+        this.matrixColumns = data.columns || []
+        this.matrixRows = data.rows || []
+      }).finally(() => { this.matrixLoading = false })
     },
     disposeCharts() {
       Object.keys(this.charts).forEach(k => {
@@ -388,6 +604,7 @@ export default {
           this.loadCross()
         }
       }).finally(() => { this.loading = false })
+      this.loadMatrix()
     },
     onCrossChange() {
       this.cross = null
@@ -451,4 +668,62 @@ export default {
   font-size: 12px;
 }
 .nps-metric b { display: block; margin-top: 4px; font-size: 20px; color: #0f172a; }
+.matrix-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.matrix-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.matrix-table { width: 100%; }
+.ml6 { margin-left: 6px; }
+.cell-agree { margin-left: 6px; color: #64748b; font-size: 12px; }
+.sig-thumb {
+  max-width: 88px;
+  max-height: 40px;
+  object-fit: contain;
+  cursor: pointer;
+  vertical-align: middle;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+}
+.agree-view { max-height: 70vh; overflow: auto; }
+.agree-meta { font-size: 13px; color: #64748b; margin-bottom: 12px; }
+.agree-body {
+  padding: 12px 14px;
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #334155;
+}
+.agree-body >>> p { margin: 0 0 8px; }
+.agree-sign-block {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed #e5e7eb;
+}
+.agree-sign-title { font-weight: 650; font-size: 13px; margin-bottom: 8px; color: #0f172a; }
+.agree-sign-img {
+  display: block;
+  max-width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: zoom-in;
+}
+.agree-sign-empty {
+  padding: 20px;
+  text-align: center;
+  color: #94a3b8;
+  background: #f8fafc;
+  border: 1px dashed #e5e7eb;
+  border-radius: 8px;
+}
+.preview-full { display: block; max-width: 100%; margin: 0 auto; }
 </style>

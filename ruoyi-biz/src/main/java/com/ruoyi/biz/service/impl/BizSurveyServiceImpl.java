@@ -55,15 +55,23 @@ public class BizSurveyServiceImpl implements IBizSurveyService
     private static final Set<String> ALLOWED_TYPES = new HashSet<>(
         Arrays.asList(
             "radio", "checkbox", "input", "textarea", "select", "rate", "date", "phone", "file",
-            "yesno", "number", "nps", "section", "email", "datetime", "slider", "image_radio", "matrix_radio", "cascade_select",
+            "yesno", "number", "nps", "section", "page_break", "agreement", "signature",
+            "email", "datetime", "slider", "image_radio", "matrix_radio", "cascade_select",
             "time", "url", "idcard", "image_checkbox", "likert"
         ));
 
+    private static final Set<String> DISPLAY_ONLY_TYPES = new HashSet<>(Arrays.asList("section", "page_break"));
+
+    private static boolean isDisplayOnly(String qType)
+    {
+        return DISPLAY_ONLY_TYPES.contains(qType);
+    }
+
     private static final Set<String> CHOICE_TYPES = new HashSet<>(
-        Arrays.asList("radio", "checkbox", "select", "yesno", "image_radio", "image_checkbox", "likert", "cascade_select"));
+        Arrays.asList("radio", "checkbox", "select", "yesno", "image_radio", "image_checkbox", "likert", "cascade_select", "agreement"));
 
     private static final Set<String> TEXT_STAT_TYPES = new HashSet<>(
-        Arrays.asList("input", "textarea", "phone", "date", "rate", "file", "number", "nps", "email", "datetime", "slider",
+        Arrays.asList("input", "textarea", "phone", "date", "rate", "file", "signature", "number", "nps", "email", "datetime", "slider",
             "time", "url", "idcard"));
 
     /** Multi-select types store answers as JSON arrays. */
@@ -201,7 +209,7 @@ public class BizSurveyServiceImpl implements IBizSurveyService
         int sort = 0;
         for (BizSurveyQuestion q : questions)
         {
-            if (StringUtils.isEmpty(q.getTitle()))
+            if (StringUtils.isEmpty(q.getTitle()) && !"page_break".equals(q.getQType()))
             {
                 throw new ServiceException("题目标题不能为空");
             }
@@ -209,9 +217,13 @@ public class BizSurveyServiceImpl implements IBizSurveyService
             {
                 throw new ServiceException("不支持的题型: " + q.getQType());
             }
-            if ("section".equals(q.getQType()))
+            if (isDisplayOnly(q.getQType()))
             {
                 q.setRequired("0");
+                if (q.getTitle() == null)
+                {
+                    q.setTitle("");
+                }
             }
             if ("yesno".equals(q.getQType()) && StringUtils.isEmpty(q.getOptionsJson()))
             {
@@ -221,7 +233,8 @@ public class BizSurveyServiceImpl implements IBizSurveyService
             {
                 q.setOptionsJson("[{\"label\":\"非常不同意\",\"value\":\"1\"},{\"label\":\"不同意\",\"value\":\"2\"},{\"label\":\"一般\",\"value\":\"3\"},{\"label\":\"同意\",\"value\":\"4\"},{\"label\":\"非常同意\",\"value\":\"5\"}]");
             }
-            if (CHOICE_TYPES.contains(q.getQType()) && StringUtils.isEmpty(q.getOptionsJson()))
+            if (CHOICE_TYPES.contains(q.getQType()) && !"agreement".equals(q.getQType())
+                && StringUtils.isEmpty(q.getOptionsJson()))
             {
                 throw new ServiceException("选择题必须配置选项: " + q.getTitle());
             }
@@ -243,10 +256,10 @@ public class BizSurveyServiceImpl implements IBizSurveyService
                 q.setRequired("0");
             }
         }
-        long answerable = questions.stream().filter(x -> !"section".equals(x.getQType())).count();
+        long answerable = questions.stream().filter(x -> !isDisplayOnly(x.getQType())).count();
         if (answerable < 1)
         {
-            throw new ServiceException("至少保留一道可作答题（说明段落不算）");
+            throw new ServiceException("至少保留一道可作答题（说明段落与分页符不算）");
         }
         questionMapper.deleteBySurveyId(surveyId);
         return questionMapper.batchInsert(questions);
@@ -259,7 +272,7 @@ public class BizSurveyServiceImpl implements IBizSurveyService
         checkOwner(survey);
         List<BizSurveyQuestion> questions = questionMapper.selectBySurveyId(surveyId);
         if (questions == null || questions.isEmpty()
-            || questions.stream().noneMatch(q -> !"section".equals(q.getQType())))
+            || questions.stream().noneMatch(q -> !isDisplayOnly(q.getQType())))
         {
             throw new ServiceException("请先设计可作答题目再发布");
         }
@@ -392,7 +405,7 @@ public class BizSurveyServiceImpl implements IBizSurveyService
         List<Map<String, Object>> textStats = new ArrayList<>();
         for (BizSurveyQuestion q : questions)
         {
-            if ("section".equals(q.getQType()))
+            if (isDisplayOnly(q.getQType()))
             {
                 continue;
             }
@@ -483,6 +496,15 @@ public class BizSurveyServiceImpl implements IBizSurveyService
             }
             catch (Exception ignored)
             {
+            }
+
+            if ("agreement".equals(q.getQType()) && options.isEmpty())
+            {
+                counter.put("1", 0L);
+                Map<String, Object> opt = new LinkedHashMap<>();
+                opt.put("value", "1");
+                opt.put("label", "已同意");
+                options.add(opt);
             }
 
             for (BizSurveyAnswerItem item : items)
@@ -583,6 +605,213 @@ public class BizSurveyServiceImpl implements IBizSurveyService
         data.put("channels", answerMapper.selectChannelStats(surveyId));
         data.put("dailyTrends", answerMapper.selectDailyStats(surveyId));
         return data;
+    }
+
+    @Override
+    public Map<String, Object> selectAnswerMatrix(Long surveyId, Integer pageNum, Integer pageSize, String validFlag)
+    {
+        BizSurvey survey = requireSurvey(surveyId);
+        checkOwner(survey);
+        int pn = pageNum == null || pageNum < 1 ? 1 : pageNum;
+        int ps = pageSize == null || pageSize < 1 ? 20 : Math.min(pageSize, 50);
+        String vf = StringUtils.isEmpty(validFlag) ? "1" : validFlag;
+        if (!"0".equals(vf) && !"1".equals(vf) && !"all".equals(vf))
+        {
+            vf = "1";
+        }
+
+        BizSurveyAnswer query = new BizSurveyAnswer();
+        query.setSurveyId(surveyId);
+        if (!"all".equals(vf))
+        {
+            query.setValidFlag(vf);
+        }
+        List<BizSurveyAnswer> allAnswers = answerMapper.selectAnswerList(query);
+        int total = allAnswers.size();
+        int from = Math.min((pn - 1) * ps, total);
+        int to = Math.min(from + ps, total);
+        List<BizSurveyAnswer> pageAnswers = allAnswers.subList(from, to);
+
+        List<BizSurveyQuestion> questions = questionMapper.selectBySurveyId(surveyId);
+        List<BizSurveyQuestion> answerable = new ArrayList<>();
+        for (BizSurveyQuestion q : questions)
+        {
+            if (!isDisplayOnly(q.getQType()))
+            {
+                answerable.add(q);
+            }
+        }
+
+        // signatures bound to an agreement are shown inside agreement viewer, not as separate columns
+        Set<Long> embeddedSignatureIds = new HashSet<>();
+        Map<Integer, List<BizSurveyQuestion>> signaturesByAgreementSort = new HashMap<>();
+        for (BizSurveyQuestion q : answerable)
+        {
+            if (!"signature".equals(q.getQType()))
+            {
+                continue;
+            }
+            Map<String, Object> props = parseProps(q.getPropsJson());
+            Object bind = props.get("bindAgreementSort");
+            if (bind == null || "".equals(String.valueOf(bind)))
+            {
+                continue;
+            }
+            try
+            {
+                int sort = Integer.parseInt(String.valueOf(bind));
+                embeddedSignatureIds.add(q.getQuestionId());
+                signaturesByAgreementSort.computeIfAbsent(sort, k -> new ArrayList<>()).add(q);
+            }
+            catch (Exception ignored)
+            {
+            }
+        }
+
+        List<Map<String, Object>> columns = new ArrayList<>();
+        for (BizSurveyQuestion q : answerable)
+        {
+            if (embeddedSignatureIds.contains(q.getQuestionId()))
+            {
+                continue;
+            }
+            Map<String, Object> col = new LinkedHashMap<>();
+            col.put("questionId", q.getQuestionId());
+            col.put("title", q.getTitle());
+            col.put("qType", q.getQType());
+            col.put("sort", q.getSort());
+            Map<String, Object> props = parseProps(q.getPropsJson());
+            if ("agreement".equals(q.getQType()))
+            {
+                col.put("content", props.get("content") == null ? "" : String.valueOf(props.get("content")));
+                col.put("agreeLabel", props.get("agreeLabel") == null ? "我已阅读并同意" : String.valueOf(props.get("agreeLabel")));
+                List<Map<String, Object>> boundSigs = new ArrayList<>();
+                int sort = q.getSort() == null ? -1 : q.getSort();
+                List<BizSurveyQuestion> sigs = signaturesByAgreementSort.getOrDefault(sort, Collections.emptyList());
+                for (BizSurveyQuestion sq : sigs)
+                {
+                    Map<String, Object> s = new LinkedHashMap<>();
+                    s.put("questionId", sq.getQuestionId());
+                    s.put("title", sq.getTitle());
+                    boundSigs.add(s);
+                }
+                col.put("boundSignatures", boundSigs);
+            }
+            columns.add(col);
+        }
+
+        Map<Long, Map<Long, String>> answerItemMap = new HashMap<>();
+        if (!pageAnswers.isEmpty())
+        {
+            List<Long> ids = new ArrayList<>(pageAnswers.size());
+            for (BizSurveyAnswer a : pageAnswers)
+            {
+                ids.add(a.getAnswerId());
+            }
+            List<BizSurveyAnswerItem> items = answerItemMapper.selectByAnswerIds(ids);
+            for (BizSurveyAnswerItem it : items)
+            {
+                answerItemMap.computeIfAbsent(it.getAnswerId(), k -> new HashMap<>())
+                    .put(it.getQuestionId(), it.getAnswerValue());
+            }
+        }
+
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (int i = 0; i < pageAnswers.size(); i++)
+        {
+            BizSurveyAnswer a = pageAnswers.get(i);
+            Map<Long, String> valueMap = answerItemMap.getOrDefault(a.getAnswerId(), Collections.emptyMap());
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("answerId", a.getAnswerId());
+            row.put("index", from + i + 1);
+            row.put("label", "#" + (from + i + 1));
+            row.put("submitTime", a.getSubmitTime() == null ? "" : sdf.format(a.getSubmitTime()));
+            row.put("submitIp", StringUtils.nvl(a.getSubmitIp(), ""));
+            row.put("channelCode", StringUtils.nvl(a.getChannelCode(), ""));
+            row.put("validFlag", StringUtils.isEmpty(a.getValidFlag()) ? "1" : a.getValidFlag());
+
+            Map<String, Object> cells = new LinkedHashMap<>();
+            for (BizSurveyQuestion q : answerable)
+            {
+                String raw = valueMap.get(q.getQuestionId());
+                Map<String, Object> cell = new LinkedHashMap<>();
+                cell.put("display", formatExportValue(q, raw));
+                cell.put("raw", raw == null ? "" : raw);
+                if ("file".equals(q.getQType()) || "signature".equals(q.getQType()))
+                {
+                    cell.put("url", extractUploadPath(raw));
+                    cell.put("fileName", extractUploadName(raw));
+                }
+                cells.put(String.valueOf(q.getQuestionId()), cell);
+            }
+            row.put("cells", cells);
+            rows.add(row);
+        }
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("surveyId", surveyId);
+        data.put("surveyName", survey.getSurveyName());
+        data.put("total", total);
+        data.put("pageNum", pn);
+        data.put("pageSize", ps);
+        data.put("validFlag", vf);
+        data.put("columns", columns);
+        data.put("rows", rows);
+        return data;
+    }
+
+    private String extractUploadPath(String raw)
+    {
+        if (StringUtils.isEmpty(raw))
+        {
+            return "";
+        }
+        try
+        {
+            if (raw.trim().startsWith("{"))
+            {
+                JSONObject obj = JSON.parseObject(raw);
+                String path = obj.getString("fileName");
+                if (StringUtils.isEmpty(path))
+                {
+                    path = obj.getString("url");
+                }
+                return path == null ? "" : path;
+            }
+            if (raw.startsWith("data:") || raw.startsWith("http") || raw.startsWith("/"))
+            {
+                return raw;
+            }
+        }
+        catch (Exception ignored)
+        {
+        }
+        return "";
+    }
+
+    private String extractUploadName(String raw)
+    {
+        if (StringUtils.isEmpty(raw))
+        {
+            return "";
+        }
+        try
+        {
+            if (raw.trim().startsWith("{"))
+            {
+                JSONObject obj = JSON.parseObject(raw);
+                String name = obj.getString("originalFilename");
+                if (StringUtils.isNotEmpty(name))
+                {
+                    return name;
+                }
+            }
+        }
+        catch (Exception ignored)
+        {
+        }
+        return "";
     }
 
     @Override
@@ -893,7 +1122,7 @@ public class BizSurveyServiceImpl implements IBizSurveyService
         List<BizSurveyQuestion> visible = SurveyJumpHelper.visibleQuestions(questions, valueMap);
         for (BizSurveyQuestion q : visible)
         {
-            if ("section".equals(q.getQType()))
+            if (isDisplayOnly(q.getQType()))
             {
                 continue;
             }
@@ -927,7 +1156,7 @@ public class BizSurveyServiceImpl implements IBizSurveyService
             validateAnswerProps(q, v);
         }
         valueMap.keySet().retainAll(visible.stream()
-            .filter(q -> !"section".equals(q.getQType()))
+            .filter(q -> !isDisplayOnly(q.getQType()))
             .map(BizSurveyQuestion::getQuestionId)
             .collect(Collectors.toSet()));
 
@@ -1046,10 +1275,10 @@ public class BizSurveyServiceImpl implements IBizSurveyService
             throw new ServiceException("请选择文件");
         }
         List<BizSurveyQuestion> questions = questionMapper.selectBySurveyId(survey.getSurveyId());
-        boolean hasFileQ = questions.stream().anyMatch(q -> "file".equals(q.getQType()));
-        if (!hasFileQ)
+        boolean hasUploadQ = questions.stream().anyMatch(q -> "file".equals(q.getQType()) || "signature".equals(q.getQType()));
+        if (!hasUploadQ)
         {
-            throw new ServiceException("该问卷未启用附件题");
+            throw new ServiceException("该问卷未启用附件或签名题");
         }
         if (file.getSize() > SURVEY_UPLOAD_MAX_BYTES)
         {
@@ -1067,7 +1296,8 @@ public class BizSurveyServiceImpl implements IBizSurveyService
 
     private void validateChoiceAnswer(BizSurveyQuestion q, String v)
     {
-        if (!CHOICE_TYPES.contains(q.getQType()) || "cascade_select".equals(q.getQType()) || StringUtils.isEmpty(v))
+        if (!CHOICE_TYPES.contains(q.getQType()) || "cascade_select".equals(q.getQType())
+            || "agreement".equals(q.getQType()) || StringUtils.isEmpty(v))
         {
             return;
         }
@@ -1170,9 +1400,17 @@ public class BizSurveyServiceImpl implements IBizSurveyService
             return;
         }
         Map<String, Object> props = parseProps(q.getPropsJson());
-        if ("file".equals(q.getQType()))
+        if ("file".equals(q.getQType()) || "signature".equals(q.getQType()))
         {
             validateFileAnswer(q, v);
+            return;
+        }
+        if ("agreement".equals(q.getQType()))
+        {
+            if (!"1".equals(v))
+            {
+                throw new ServiceException("请阅读并同意: " + q.getTitle());
+            }
             return;
         }
         if ("phone".equals(q.getQType()) || "phone".equals(String.valueOf(props.getOrDefault("format", ""))))
@@ -1579,7 +1817,7 @@ public class BizSurveyServiceImpl implements IBizSurveyService
         {
             return "";
         }
-        if ("file".equals(q.getQType()))
+        if ("file".equals(q.getQType()) || "signature".equals(q.getQType()))
         {
             try
             {
@@ -1591,6 +1829,14 @@ public class BizSurveyServiceImpl implements IBizSurveyService
                     if (StringUtils.isEmpty(path))
                     {
                         path = obj.getString("url");
+                    }
+                    if ("signature".equals(q.getQType()))
+                    {
+                        if (StringUtils.isNotEmpty(path) && path.startsWith("data:"))
+                        {
+                            return "[签名图]";
+                        }
+                        return StringUtils.isNotEmpty(path) ? path : "[签名]";
                     }
                     if (StringUtils.isNotEmpty(name) && StringUtils.isNotEmpty(path))
                     {
@@ -1610,6 +1856,10 @@ public class BizSurveyServiceImpl implements IBizSurveyService
             {
             }
             return raw;
+        }
+        if ("agreement".equals(q.getQType()))
+        {
+            return "1".equals(raw) ? "已同意" : raw;
         }
         if ("matrix_radio".equals(q.getQType()))
         {
@@ -1806,9 +2056,18 @@ public class BizSurveyServiceImpl implements IBizSurveyService
         {
             throw new ServiceException("附件答案格式错误: " + q.getTitle());
         }
-        if (StringUtils.isEmpty(path) || path.contains("..") || !(path.startsWith("/profile/") || path.contains("/profile/")))
+        if (StringUtils.isEmpty(path) || path.contains(".."))
         {
-            throw new ServiceException("附件无效: " + q.getTitle());
+            throw new ServiceException(("signature".equals(q.getQType()) ? "签名" : "附件") + "无效: " + q.getTitle());
+        }
+        // preview mode may store data URL; reject on open submit
+        if (path.startsWith("data:"))
+        {
+            throw new ServiceException("签名无效，请重新签署: " + q.getTitle());
+        }
+        if (!(path.startsWith("/profile/") || path.contains("/profile/")))
+        {
+            throw new ServiceException(("signature".equals(q.getQType()) ? "签名" : "附件") + "无效: " + q.getTitle());
         }
     }
 
@@ -1842,7 +2101,7 @@ public class BizSurveyServiceImpl implements IBizSurveyService
         List<BizSurveyQuestion> exportQs = new ArrayList<>();
         for (BizSurveyQuestion q : questions)
         {
-            if (!"section".equals(q.getQType()))
+            if (!isDisplayOnly(q.getQType()))
             {
                 exportQs.add(q);
             }

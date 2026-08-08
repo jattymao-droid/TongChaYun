@@ -83,8 +83,9 @@
             <el-radio-group v-model="form.fillMode">
               <el-radio label="all">整页展示</el-radio>
               <el-radio label="step">一页一题</el-radio>
+              <el-radio label="pages">按分页</el-radio>
             </el-radio-group>
-            <span class="tip">一页一题在公开填写页显示进度与上下题切换</span>
+            <span class="tip">「按分页」按设计端分页符分页；一页一题显示进度与上下题切换</span>
           </el-form-item>
           <el-divider content-position="left">分享海报背景</el-divider>
           <poster-bg-form
@@ -329,7 +330,7 @@ export default {
           needCaptcha: s.needCaptcha || '0',
           themeColor: theme.color || '#1677ff',
           themeBg: theme.bg || 'linear-gradient(180deg, #f5f8ff 0%, #f7f7f7 280px, #f7f7f7 100%)',
-          fillMode: theme.fillMode === 'step' ? 'step' : 'all',
+          fillMode: theme.fillMode === 'step' || theme.fillMode === 'pages' ? theme.fillMode : 'all',
           posterBgType: theme.posterBgType || 'theme',
           posterBgColor: theme.posterBgColor || '#eef2ff',
           posterBgImage: theme.posterBgImage || '',
@@ -352,7 +353,7 @@ export default {
         ...prev,
         color: payload.themeColor || '#1677ff',
         bg: payload.themeBg || '',
-        fillMode: payload.fillMode === 'step' ? 'step' : 'all',
+        fillMode: payload.fillMode === 'step' || payload.fillMode === 'pages' ? payload.fillMode : 'all',
         posterBgType: payload.posterBgType || 'theme',
         posterBgColor: payload.posterBgColor || '#eef2ff',
         posterBgImage: payload.posterBgImage || '',

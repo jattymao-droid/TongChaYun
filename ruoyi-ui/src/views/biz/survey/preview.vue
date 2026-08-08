@@ -14,28 +14,35 @@
         <p v-if="survey.surveyDesc">{{ survey.surveyDesc }}</p>
       </div>
       <div class="panel">
-        <div v-if="fillMode === 'step' && visibleQuestions.length" class="step-progress">
+        <div v-if="(fillMode === 'step' || fillMode === 'pages') && displayQuestions.length" class="step-progress">
           <div class="step-track"><i :style="{ width: stepProgress + '%' }" /></div>
-          <span>{{ stepIndex + 1 }} / {{ visibleQuestions.length }}</span>
+          <span v-if="fillMode === 'pages'">{{ stepIndex + 1 }} / {{ pages.length }} 页</span>
+          <span v-else>{{ stepIndex + 1 }} / {{ stepQuestionList.length }}</span>
         </div>
-        <div v-for="(q, vIdx) in displayQuestions" :key="q._key" class="q-block">
+        <div v-if="fillMode === 'pages' && currentPageTitle" class="page-title">{{ currentPageTitle }}</div>
+        <div v-for="q in displayQuestions" :key="q._key" class="q-block">
           <survey-question-field
             :question="q"
             v-model="form[q._key]"
             mode="preview"
             :show-type-tag="true"
-            :index-label="q.qType === 'section' ? null : questionNo(q)"
+            :index-label="isDisplayOnly(q.qType) ? null : questionNo(q)"
+            :bound-signatures="boundSignaturesOf(q)"
+            :bound-form="form"
+            bound-key-field="_key"
             @change="onChange"
+            @bound-input="onBoundInput"
+            @bound-change="onChange"
           />
         </div>
 
         <el-empty v-if="!loading && !questions.length" description="请先保存题目后再预览" />
         <el-empty v-else-if="!loading && questions.length && !visibleQuestions.length" description="当前跳题规则下无可显示题目" />
-        <div class="actions" v-if="visibleQuestions.length">
+        <div class="actions" v-if="displayQuestions.length || (fillMode === 'all' && visibleQuestions.length)">
           <el-button @click="reload">刷新预览</el-button>
-          <template v-if="fillMode === 'step'">
-            <el-button :disabled="stepIndex <= 0" @click="prevStep">上一题</el-button>
-            <el-button v-if="!isLastStep" type="primary" @click="nextStep">下一题</el-button>
+          <template v-if="fillMode === 'step' || fillMode === 'pages'">
+            <el-button :disabled="stepIndex <= 0" @click="prevStep">{{ fillMode === 'pages' ? '上一页' : '上一题' }}</el-button>
+            <el-button v-if="!isLastStep" type="primary" @click="nextStep">{{ fillMode === 'pages' ? '下一页' : '下一题' }}</el-button>
             <el-button v-else type="primary" @click="mockSubmit">模拟提交</el-button>
           </template>
           <el-button v-else type="primary" @click="mockSubmit">模拟提交</el-button>
@@ -52,7 +59,13 @@ import {
   normalizeQuestion,
   defaultAnswerValue,
   resolveVisibleQuestions,
-  validateSurveyAnswers
+  validateSurveyAnswers,
+  groupVisibleIntoPages,
+  questionDisplayNo,
+  isDisplayOnly,
+  getBoundSignatures,
+  withoutEmbeddedSignatures,
+  expandWithBoundSignatures
 } from '@/utils/bizSurveyQuestion'
 
 export default {
@@ -79,28 +92,51 @@ export default {
       void this.tick
       return resolveVisibleQuestions(this.questions, q => this.form[q._key])
     },
+    pages() {
+      return groupVisibleIntoPages(withoutEmbeddedSignatures(this.visibleQuestions, this.questions))
+    },
+    stepQuestionList() {
+      return withoutEmbeddedSignatures(
+        this.visibleQuestions.filter(q => q.qType !== 'page_break'),
+        this.questions
+      )
+    },
+    currentPageTitle() {
+      if (this.fillMode !== 'pages') return ''
+      const page = this.pages[this.stepIndex]
+      return (page && page.title) || ''
+    },
     displayQuestions() {
-      const list = this.visibleQuestions
-      if (this.fillMode !== 'step') return list
-      if (!list.length) return []
-      const i = Math.min(Math.max(this.stepIndex, 0), list.length - 1)
-      return [list[i]]
+      if (this.fillMode === 'pages') {
+        const page = this.pages[Math.min(Math.max(this.stepIndex, 0), Math.max(this.pages.length - 1, 0))]
+        return (page && page.questions) || []
+      }
+      if (this.fillMode === 'step') {
+        const list = this.stepQuestionList
+        if (!list.length) return []
+        const i = Math.min(Math.max(this.stepIndex, 0), list.length - 1)
+        return [list[i]]
+      }
+      return withoutEmbeddedSignatures(
+        this.visibleQuestions.filter(q => q.qType !== 'page_break'),
+        this.questions
+      )
     },
     stepProgress() {
-      const total = this.visibleQuestions.length
+      const total = this.fillMode === 'pages' ? this.pages.length : this.stepQuestionList.length
       if (!total) return 0
       return Math.round(((Math.min(this.stepIndex, total - 1) + 1) / total) * 100)
     },
     isLastStep() {
-      return this.stepIndex >= Math.max(0, this.visibleQuestions.length - 1)
+      const total = this.fillMode === 'pages' ? this.pages.length : this.stepQuestionList.length
+      return this.stepIndex >= Math.max(0, total - 1)
     }
   },
   watch: {
-    visibleQuestions(list) {
-      if (this.stepIndex >= list.length) this.stepIndex = Math.max(0, list.length - 1)
-    }
-  },
-  watch: {
+    visibleQuestions() {
+      const total = this.fillMode === 'pages' ? this.pages.length : this.stepQuestionList.length
+      if (this.stepIndex >= total) this.stepIndex = Math.max(0, total - 1)
+    },
     surveyIdProp: {
       immediate: false,
       handler(v) {
@@ -119,21 +155,28 @@ export default {
     if (this.surveyId) this.load()
   },
   methods: {
+    isDisplayOnly,
+    boundSignaturesOf(q) {
+      if (!q || q.qType !== 'agreement') return []
+      return getBoundSignatures(q, this.visibleQuestions)
+    },
+    onBoundInput(sq, v) {
+      if (!sq || sq._key == null) return
+      this.$set(this.form, sq._key, v)
+      this.onChange()
+    },
     answerNo(vIdx) {
-      return this.visibleQuestions.slice(0, vIdx + 1).filter(q => q.qType !== 'section').length
+      return this.visibleQuestions.slice(0, vIdx + 1).filter(q => !isDisplayOnly(q.qType)).length
     },
     questionNo(q) {
-      let n = 0
-      for (const item of this.visibleQuestions) {
-        if (item.qType === 'section') continue
-        n++
-        if (item._key === q._key) return n
-      }
-      return n || 1
+      return questionDisplayNo(this.visibleQuestions, q) || 1
     },
     prevStep() { if (this.stepIndex > 0) this.stepIndex-- },
     nextStep() {
-      const r = validateSurveyAnswers(this.displayQuestions, q => this.form[q._key])
+      const r = validateSurveyAnswers(
+        expandWithBoundSignatures(this.displayQuestions, this.visibleQuestions),
+        q => this.form[q._key]
+      )
       if (!r.ok) {
         this.$modal.msgWarning(r.message)
         return
@@ -162,7 +205,7 @@ export default {
         this.survey = data.survey || {}
         let theme = {}
         try { theme = this.survey.themeJson ? JSON.parse(this.survey.themeJson) : {} } catch (e) { theme = {} }
-        this.fillMode = theme.fillMode === 'step' ? 'step' : 'all'
+        this.fillMode = theme.fillMode === 'step' || theme.fillMode === 'pages' ? theme.fillMode : 'all'
         this.questions = (data.questions || []).map((q, i) => normalizeQuestion(q, i, { keyMode: 'preview' }))
         const form = {}
         this.questions.forEach(q => {
@@ -189,4 +232,5 @@ export default {
 .step-progress { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; font-size: 12px; color: #94a3b8; }
 .step-track { flex: 1; height: 6px; border-radius: 999px; background: #e5e7eb; overflow: hidden; }
 .step-track i { display: block; height: 100%; background: #2b6de5; border-radius: inherit; transition: width .25s ease; }
+.page-title { font-size: 16px; font-weight: 650; color: #1f2937; margin: 0 0 14px; }
 </style>

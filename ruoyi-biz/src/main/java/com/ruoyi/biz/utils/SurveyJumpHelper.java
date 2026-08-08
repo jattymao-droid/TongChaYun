@@ -21,6 +21,12 @@ public final class SurveyJumpHelper
 {
     private SurveyJumpHelper() {}
 
+    /** Structural / non-answerable types kept in the visible path for client paging. */
+    public static boolean isDisplayOnly(String qType)
+    {
+        return "section".equals(qType) || "page_break".equals(qType);
+    }
+
     public static List<BizSurveyQuestion> visibleQuestions(List<BizSurveyQuestion> questions, Map<Long, String> answers)
     {
         if (questions == null || questions.isEmpty())
@@ -154,7 +160,18 @@ public final class SurveyJumpHelper
         {
             return currentIndex + 1 < questions.size() ? currentIndex + 1 : null;
         }
-        return idx;
+        return skipPageBreakLanding(questions, idx);
+    }
+
+    /** If a jump lands on a page_break, advance to the next non-page_break question. */
+    private static Integer skipPageBreakLanding(List<BizSurveyQuestion> questions, int idx)
+    {
+        int i = idx;
+        while (i < questions.size() && "page_break".equals(questions.get(i).getQType()))
+        {
+            i++;
+        }
+        return i < questions.size() ? i : null;
     }
 
     private static Integer findJumpToSort(String propsJson, String value)

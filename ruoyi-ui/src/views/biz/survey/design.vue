@@ -58,12 +58,12 @@
               v-for="(q, idx) in questions"
               :key="q._key"
               class="outline-item"
-              :class="{ on: idx === activeIndex }"
+              :class="{ on: idx === activeIndex, 'is-break': q.qType === 'page_break' }"
               @click="activeIndex = idx; scrollToQ(idx)"
             >
               <i class="el-icon-rank ol-drag"></i>
-              <span class="ol-no">Q{{ idx + 1 }}</span>
-              <span class="ol-title">{{ q.title || '未命名' }}</span>
+              <span class="ol-no">{{ outlineLabel(q, idx) }}</span>
+              <span class="ol-title">{{ q.qType === 'page_break' ? (q.title || '分页') : (q.title || '未命名') }}</span>
             </div>
           </draggable>
           <el-empty v-if="!questions.length" description="暂无题目" :image-size="56" />
@@ -104,9 +104,9 @@
             >
               <div class="q-toolbar">
                 <i class="el-icon-rank q-drag" title="拖拽排序"></i>
-                <span class="q-no">Q{{ idx + 1 }}</span>
+                <span class="q-no">{{ outlineLabel(q, idx) }}</span>
                 <el-tag size="mini" effect="plain">{{ typeLabel(q.qType) }}</el-tag>
-                <el-tag size="mini" type="danger" effect="plain" v-if="q.required === '1'">必答</el-tag>
+                <el-tag size="mini" type="danger" effect="plain" v-if="q.required === '1' && !isDisplayOnly(q.qType)">必答</el-tag>
                 <div class="q-actions">
                   <el-button type="text" icon="el-icon-document-copy" title="复制" @click.stop="duplicateQuestion(idx)" />
                   <el-button type="text" icon="el-icon-top" title="上移" :disabled="idx === 0" @click.stop="moveQuestion(idx, -1)" />
@@ -115,9 +115,24 @@
                 </div>
               </div>
 
-              <div class="q-body">
+              <div class="q-body" v-if="q.qType === 'page_break'">
+                <div class="page-break-bar">
+                  <span class="pb-line" />
+                  <span class="pb-label">分页符</span>
+                  <span class="pb-line" />
+                </div>
+                <el-input
+                  v-model="q.title"
+                  size="small"
+                  placeholder="下一页标题（选填）"
+                  @click.native.stop
+                />
+                <div class="hint">作答端「按分页」模式下，填写者在此处分页；标题将显示在下一页顶部</div>
+              </div>
+
+              <div class="q-body" v-else>
                 <div class="q-title-row">
-                  <span class="req" v-if="q.required === '1' && q.qType !== 'section'">*</span>
+                  <span class="req" v-if="q.required === '1' && !isDisplayOnly(q.qType)">*</span>
                   <el-input
                     type="textarea"
                     :autosize="{ minRows: 1, maxRows: 4 }"
@@ -129,6 +144,22 @@
 
                 <div v-if="q.qType === 'section'" class="q-preview section-preview">
                   <el-input type="textarea" :rows="3" v-model="q._content" placeholder="说明文案" @click.native.stop />
+                </div>
+                <div v-else-if="q.qType === 'agreement'" class="q-preview agreement-preview" @click.stop>
+                  <div class="agree-html" v-html="q._content || '<p class=\"muted-ph\">请在右侧编辑协议正文</p>'" />
+                  <el-checkbox :value="true" disabled>{{ q._agreeLabel || '我已阅读并同意' }}</el-checkbox>
+                  <div
+                    v-for="(sq, si) in designBoundSignatures(idx)"
+                    :key="'bs-' + si"
+                    class="agree-sign-preview"
+                    @click.stop="activeIndex = sq.i"
+                  >
+                    <div class="agree-sign-title">{{ sq.q.title || '手写签名' }}</div>
+                    <div class="muted-box">签名区（显示在协议最下方）</div>
+                  </div>
+                </div>
+                <div v-else-if="q.qType === 'signature'" class="q-preview muted-box">
+                  {{ q._bindAgreementSort != null && q._bindAgreementSort !== '' ? '手写签名区（将显示在绑定协议最下方）' : '手写签名区' }}
                 </div>
 
                 <div v-else-if="needOptions(q.qType) && q.qType !== 'cascade_select'" class="q-preview opts">
@@ -195,8 +226,9 @@
               <el-radio-group v-model="fillMode" @change="saveSurveyMetaQuiet">
                 <el-radio label="all">整页展示</el-radio>
                 <el-radio label="step">一页一题</el-radio>
+                <el-radio label="pages">按分页</el-radio>
               </el-radio-group>
-              <div class="hint">一页一题适合较长问卷，公开填写页显示进度条</div>
+              <div class="hint">「按分页」需插入分页符；一页一题适合较长问卷</div>
             </el-form-item>
             <el-form-item label="题目数">
               <span>{{ questions.length }}</span>
@@ -211,8 +243,8 @@
                 <el-option v-for="t in typeList" :key="t.value" :label="t.label" :value="t.value" />
               </el-select>
             </el-form-item>
-            <el-form-item label="题干" v-if="rightTab === 'question'">
-              <el-input v-model="current.title" type="textarea" :rows="3" />
+            <el-form-item :label="current.qType === 'page_break' ? '下一页标题' : '题干'" v-if="rightTab === 'question'">
+              <el-input v-model="current.title" type="textarea" :rows="3" :placeholder="current.qType === 'page_break' ? '选填，显示在下一页顶部' : ''" />
             </el-form-item>
             <el-form-item label="必答题" v-if="rightTab === 'question' && !isDisplayOnly(current.qType)">
               <el-switch v-model="current.required" active-value="1" inactive-value="0" />
@@ -284,6 +316,24 @@
               <el-form-item label="说明内容" v-if="current.qType === 'section'">
                 <el-input v-model="current._content" type="textarea" :rows="4" />
               </el-form-item>
+              <el-form-item label="协议正文" v-if="current.qType === 'agreement'">
+                <editor v-model="current._content" :min-height="180" type="base64" />
+              </el-form-item>
+              <el-form-item label="同意文案" v-if="current.qType === 'agreement'">
+                <el-input v-model="current._agreeLabel" placeholder="我已阅读并同意" />
+              </el-form-item>
+              <el-form-item label="绑定协议" v-if="current.qType === 'signature'">
+                <el-select v-model="current._bindAgreementSort" clearable placeholder="不绑定（始终显示）" style="width:100%" @change="onBindAgreementChange">
+                  <el-option v-for="opt in agreementOptions" :key="opt.value" :label="opt.label" :value="opt.value" :disabled="opt.value === activeIndex" />
+                </el-select>
+                <div class="hint">绑定后，签名显示在该协议最下方；填写者勾选同意后才可签名</div>
+              </el-form-item>
+              <el-form-item label="笔迹颜色" v-if="current.qType === 'signature'">
+                <el-color-picker v-model="current._penColor" size="mini" />
+              </el-form-item>
+              <el-form-item label="签名板高度" v-if="current.qType === 'signature'">
+                <el-input-number v-model="current._padHeight" :min="100" :max="360" :step="10" />
+              </el-form-item>
               <el-form-item label="最小值" v-if="isNumberType(current.qType) || current.qType === 'nps'">
                 <el-input-number v-model="current._min" :disabled="current.qType === 'nps'" />
               </el-form-item>
@@ -344,12 +394,13 @@
 import draggable from 'vuedraggable'
 import { getSurvey, saveSurveyQuestions, updateSurvey, publishSurvey } from '@/api/biz/survey'
 import SurveyJumpFlow from '@/components/biz/SurveyJumpFlow'
+import Editor from '@/components/Editor'
 
 let keySeq = 1
 
 export default {
   name: 'BizSurveyDesign',
-  components: { draggable, SurveyJumpFlow },
+  components: { draggable, SurveyJumpFlow, Editor },
   dicts: ['biz_question_type'],
   props: {
     embedded: { type: Boolean, default: false },
@@ -396,7 +447,10 @@ export default {
         { value: 'file', label: '附件上传', icon: 'el-icon-paperclip' },
         { value: 'matrix_radio', label: '矩阵单选', icon: 'el-icon-s-grid' },
         { value: 'cascade_select', label: '级联选择', icon: 'el-icon-share' },
-        { value: 'section', label: '说明段落', icon: 'el-icon-info' }
+        { value: 'section', label: '说明段落', icon: 'el-icon-info' },
+        { value: 'page_break', label: '分页符', icon: 'el-icon-minus' },
+        { value: 'agreement', label: '协议同意', icon: 'el-icon-document-checked' },
+        { value: 'signature', label: '手写签名', icon: 'el-icon-edit-outline' }
       ]
     }
   },
@@ -426,8 +480,19 @@ export default {
       return [
         { name: '选择', items: pick(['radio', 'checkbox', 'select', 'image_radio', 'image_checkbox', 'yesno', 'likert']) },
         { name: '文本输入', items: pick(['input', 'textarea', 'phone', 'email', 'url', 'idcard']) },
-        { name: '高级题型', items: pick(['number', 'date', 'time', 'datetime', 'rate', 'nps', 'slider', 'file', 'matrix_radio', 'cascade_select', 'section']) }
+        { name: '高级题型', items: pick(['number', 'date', 'time', 'datetime', 'rate', 'nps', 'slider', 'file', 'matrix_radio', 'cascade_select']) },
+        { name: '结构', items: pick(['section', 'page_break']) },
+        { name: '合规', items: pick(['agreement', 'signature']) }
       ]
+    },
+    agreementOptions() {
+      return this.questions
+        .map((q, i) => ({ q, i }))
+        .filter(x => x.q.qType === 'agreement')
+        .map(x => ({
+          value: x.i,
+          label: 'Q' + this.answerableNo(x.i) + ' ' + (x.q.title || '未命名协议')
+        }))
     },
     questionsForFlow() {
       return this.questions.map((q, i) => ({
@@ -551,7 +616,7 @@ export default {
       if (!this.surveyId) return
       let theme = {}
       try { theme = this.survey.themeJson ? JSON.parse(this.survey.themeJson) : {} } catch (e) { theme = {} }
-      theme.fillMode = this.fillMode === 'step' ? 'step' : 'all'
+      theme.fillMode = this.fillMode === 'step' || this.fillMode === 'pages' ? this.fillMode : 'all'
       const themeJson = JSON.stringify(theme)
       this.survey.themeJson = themeJson
       updateSurvey({
@@ -560,6 +625,37 @@ export default {
         surveyDesc: this.survey.surveyDesc,
         themeJson
       }).catch(() => {})
+    },
+    outlineLabel(q, idx) {
+      if (q && q.qType === 'page_break') return '分页'
+      return 'Q' + this.answerableNo(idx)
+    },
+    answerableNo(idx) {
+      let n = 0
+      for (let i = 0; i <= idx; i++) {
+        const item = this.questions[i]
+        if (!item || this.isDisplayOnly(item.qType)) continue
+        n++
+      }
+      return n
+    },
+    onBindAgreementChange(val) {
+      if (!this.current || this.current.qType !== 'signature') return
+      if (val === null || val === undefined || val === '') {
+        this.current._visibleIfSource = null
+        this.current._visibleIfValue = ''
+      } else {
+        this.current._visibleIfSource = Number(val)
+        this.current._visibleIfValue = '1'
+      }
+    },
+    designBoundSignatures(agreementIndex) {
+      return this.questions
+        .map((q, i) => ({ q, i }))
+        .filter(x => x.q.qType === 'signature'
+          && x.q._bindAgreementSort != null
+          && x.q._bindAgreementSort !== ''
+          && Number(x.q._bindAgreementSort) === Number(agreementIndex))
     },
     openBatchOptions() {
       if (!this.current || !this.needOptions(this.current.qType) || this.current.qType === 'yesno' || this.current.qType === 'cascade_select') return
@@ -603,7 +699,7 @@ export default {
     isTextType(type) { return ['input', 'textarea', 'phone', 'email', 'url', 'idcard'].includes(type) },
     isImageOptionType(type) { return type === 'image_radio' || type === 'image_checkbox' },
     isNumberType(type) { return ['number', 'slider'].includes(type) },
-    isDisplayOnly(type) { return type === 'section' },
+    isDisplayOnly(type) { return type === 'section' || type === 'page_break' },
     loadDetail() {
       this.loading = true
       return getSurvey(this.surveyId).then(res => {
@@ -611,7 +707,7 @@ export default {
         this.survey = data.survey || {}
         let theme = {}
         try { theme = this.survey.themeJson ? JSON.parse(this.survey.themeJson) : {} } catch (e) { theme = {} }
-        this.fillMode = theme.fillMode === 'step' ? 'step' : 'all'
+        this.fillMode = theme.fillMode === 'step' || theme.fillMode === 'pages' ? theme.fillMode : 'all'
         this.questions = (data.questions || []).map(q => this.normalizeQuestion(q))
         this.activeIndex = 0
         this.rightTab = this.questions.length ? 'question' : 'survey'
@@ -673,15 +769,43 @@ export default {
         _leftLabel: props.leftLabel || (q.qType === 'nps' ? '不可能' : ''),
         _rightLabel: props.rightLabel || (q.qType === 'nps' ? '非常可能' : ''),
         _content: props.content || '',
+        _agreeLabel: props.agreeLabel || '我已阅读并同意',
+        _bindAgreementSort: props.bindAgreementSort != null && props.bindAgreementSort !== ''
+          ? Number(props.bindAgreementSort)
+          : (props.visibleIf && props.visibleIf.sourceSort != null && String(props.visibleIf.value) === '1'
+            ? Number(props.visibleIf.sourceSort) : null),
+        _penColor: props.penColor || '#111111',
+        _padHeight: props.padHeight == null ? 160 : Number(props.padHeight),
         _visibleIfSource: props.visibleIf && props.visibleIf.sourceSort != null ? Number(props.visibleIf.sourceSort) : null,
         _visibleIfValue: props.visibleIf && props.visibleIf.value != null ? String(props.visibleIf.value) : '',
-        required: q.qType === 'section' ? '0' : (q.required || '0')
+        required: this.isDisplayOnly(q.qType) ? '0' : (q.required || '0')
       }
     },
     addQuestion(type, atIndex) {
-      const title = type === 'section' ? '填写说明' : this.typeLabel(type)
-      const q = this.normalizeQuestion({ qType: type, title, required: type === 'section' ? '0' : '1', optionsJson: '', propsJson: '' })
+      const titleMap = {
+        section: '填写说明',
+        page_break: '',
+        agreement: '知情同意协议',
+        signature: '手写签名'
+      }
+      const title = Object.prototype.hasOwnProperty.call(titleMap, type) ? titleMap[type] : this.typeLabel(type)
+      const q = this.normalizeQuestion({
+        qType: type,
+        title,
+        required: this.isDisplayOnly(type) ? '0' : '1',
+        optionsJson: '',
+        propsJson: ''
+      })
       if (type === 'section') q._content = '请在此填写说明文案，不会作为答题项。'
+      if (type === 'agreement') {
+        q._content = '<p>请在此编辑协议正文。填写者需勾选同意后方可继续相关签名。</p>'
+        q._agreeLabel = '我已阅读并同意'
+      }
+      if (type === 'signature') {
+        q._penColor = '#111111'
+        q._padHeight = 160
+        q._bindAgreementSort = null
+      }
       if (type === 'matrix_radio') {
         q._rows = [{ label: '陈述一', value: 'r1' }, { label: '陈述二', value: 'r2' }]
       }
@@ -696,6 +820,11 @@ export default {
       this.flashKey = q._key
       setTimeout(() => { if (this.flashKey === q._key) this.flashKey = '' }, 900)
       this.$nextTick(() => this.scrollToQ(this.activeIndex))
+      if (type === 'page_break' && this.fillMode === 'all') {
+        this.fillMode = 'pages'
+        this.saveSurveyMetaQuiet()
+        this.$modal.msgSuccess('已切换为「按分页」填答方式')
+      }
     },
     insertQuestionAt(idx) {
       this.leftMode = 'types'
@@ -717,6 +846,12 @@ export default {
       clone._max = src._max
       clone._maxSizeMb = src._maxSizeMb
       clone._content = src._content
+      clone._agreeLabel = src._agreeLabel
+      clone._bindAgreementSort = src._bindAgreementSort
+      clone._penColor = src._penColor
+      clone._padHeight = src._padHeight
+      clone._visibleIfSource = src._visibleIfSource
+      clone._visibleIfValue = src._visibleIfValue
       if (this.needOptions(src.qType)) {
         clone._options = src._options.map(o => ({
           label: o.label, value: o.value, imageUrl: o.imageUrl || '',
@@ -810,19 +945,31 @@ export default {
         if (q.qType === 'idcard') props.format = 'idcard'
         if (q.qType === 'file') props.maxSizeMb = q._maxSizeMb || 5
         if (q.qType === 'section') props.content = q._content || ''
+        if (q.qType === 'agreement') {
+          props.content = q._content || ''
+          props.agreeLabel = q._agreeLabel || '我已阅读并同意'
+        }
+        if (q.qType === 'signature') {
+          props.penColor = q._penColor || '#111111'
+          props.padHeight = q._padHeight || 160
+          if (q._bindAgreementSort !== null && q._bindAgreementSort !== undefined && q._bindAgreementSort !== '') {
+            props.bindAgreementSort = Number(q._bindAgreementSort)
+            props.visibleIf = { sourceSort: Number(q._bindAgreementSort), value: '1' }
+          }
+        }
         if (q.qType === 'matrix_radio') {
           props.rows = (q._rows || []).map((r, ri) => ({
             label: r.label || ('陈述' + (ri + 1)),
             value: r.value || ('r' + (ri + 1))
           }))
         }
-        if (q._visibleIfSource !== null && q._visibleIfSource !== undefined && q._visibleIfSource !== '' && String(q._visibleIfValue || '') !== '') {
+        if (q.qType !== 'signature' && q._visibleIfSource !== null && q._visibleIfSource !== undefined && q._visibleIfSource !== '' && String(q._visibleIfValue || '') !== '') {
           props.visibleIf = { sourceSort: Number(q._visibleIfSource), value: String(q._visibleIfValue) }
         }
         return {
           qType: q.qType,
           title: (q.title || '').trim(),
-          required: q.qType === 'section' ? '0' : (q.required || '0'),
+          required: this.isDisplayOnly(q.qType) ? '0' : (q.required || '0'),
           optionsJson: options ? JSON.stringify(options) : null,
           propsJson: JSON.stringify(props),
           sort: i
@@ -834,13 +981,18 @@ export default {
         this.$modal.msgError('至少添加一道题目')
         return false
       }
-      if (!this.questions.some(q => q.qType !== 'section')) {
-        this.$modal.msgError('至少添加一道可作答题（说明段落不算）')
+      if (!this.questions.some(q => !this.isDisplayOnly(q.qType))) {
+        this.$modal.msgError('至少添加一道可作答题（说明段落与分页符不算）')
         return false
       }
       for (const q of this.questions) {
+        if (q.qType === 'page_break') continue
         if (!q.title || !q.title.trim()) {
           this.$modal.msgError('请填写所有题干')
+          return false
+        }
+        if (q.qType === 'agreement' && !(q._content || '').replace(/<[^>]+>/g, '').trim()) {
+          this.$modal.msgError('请填写协议正文：' + (q.title || '协议同意'))
           return false
         }
         if (this.needOptions(q.qType) && (!q._options || !q._options.length)) {
@@ -1114,6 +1266,34 @@ export default {
 .mb8 { margin-bottom: 8px; }
 .mb12 { margin-bottom: 12px; }
 .hint { margin-top: 6px; color: #94a3b8; font-size: 12px; }
+.outline-item.is-break .ol-title { color: #64748b; font-style: italic; }
+.page-break-bar {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+}
+.page-break-bar .pb-line { flex: 1; height: 0; border-top: 1px dashed #94a3b8; }
+.page-break-bar .pb-label {
+  font-size: 12px; font-weight: 650; color: #64748b;
+  padding: 2px 10px; border-radius: 999px; background: #f1f5f9;
+}
+.agreement-preview {
+  border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; background: #fafafa;
+}
+.agree-html {
+  max-height: 140px; overflow: auto; margin-bottom: 10px; font-size: 13px; line-height: 1.55; color: #334155;
+}
+.agree-html >>> p { margin: 0 0 8px; }
+.agree-sign-preview {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed #e5e7eb;
+  cursor: pointer;
+}
+.agree-sign-title {
+  font-size: 12px;
+  font-weight: 650;
+  color: #334155;
+  margin-bottom: 6px;
+}
 
 @media (max-width: 1200px) {
   .studio-body { grid-template-columns: 240px minmax(0, 1fr) 280px; }

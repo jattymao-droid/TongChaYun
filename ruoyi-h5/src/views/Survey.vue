@@ -26,17 +26,66 @@
 
     <div class="card" v-else>
       <p class="empty" v-if="metaLoading">加载中…</p>
-      <template v-else-if="visibleQuestions.length">
-        <div v-if="fillMode === 'step'" class="step-progress">
+      <template v-else-if="fillMode === 'pages' ? pages.length && pages[0].questions.length : stepQuestionList.length">
+        <div v-if="fillMode === 'step' || fillMode === 'pages'" class="step-progress">
           <div class="step-track"><i :style="{ width: stepProgress + '%' }" /></div>
-          <span>{{ stepIndex + 1 }} / {{ visibleQuestions.length }}</span>
+          <span v-if="fillMode === 'pages'">{{ stepIndex + 1 }} / {{ pages.length }} 页</span>
+          <span v-else>{{ stepIndex + 1 }} / {{ stepQuestionList.length }}</span>
         </div>
-        <Transition :name="fillMode === 'step' ? stepAnim : ''" mode="out-in">
+        <div v-if="fillMode === 'pages' && currentPageTitle" class="page-title">{{ currentPageTitle }}</div>
+        <Transition :name="(fillMode === 'step' || fillMode === 'pages') ? stepAnim : ''" mode="out-in">
           <div class="step-stage" :key="stepStageKey">
-            <div class="field step-field" v-for="(q, idx) in displayQuestions" :key="q.questionId">
+            <div class="field step-field" v-for="q in displayQuestions" :key="q.questionId">
           <div v-if="q.qType === 'section'" class="section-box">
             <h3>{{ q.title }}</h3>
             <p>{{ q._content || '' }}</p>
+          </div>
+          <div v-else-if="q.qType === 'agreement'" class="agreement-box">
+            <label>
+              {{ questionNo(q) }}. {{ q.title }}
+              <span class="req" v-if="q.required === '1'">*</span>
+            </label>
+            <div class="agree-body" v-html="q._content || ''" />
+            <label class="opt agree-check" :class="{ on: form[q.questionId] === '1' }">
+              <input type="checkbox" :checked="form[q.questionId] === '1'" @change="onAgree(q, $event)" />
+              {{ q._agreeLabel || '我已阅读并同意' }}
+            </label>
+            <div
+              v-for="sq in boundSignaturesOf(q)"
+              :key="sq.questionId"
+              class="agree-sign"
+            >
+              <label class="agree-sign-label">
+                {{ sq.title || '手写签名' }}
+                <span class="req" v-if="sq.required === '1'">*</span>
+              </label>
+              <SurveySignaturePad
+                v-model="form[sq.questionId]"
+                :pen-color="sq._penColor || '#111111'"
+                :pad-height="sq._padHeight || 160"
+                :upload-url="surveyUploadUrl(code)"
+                :upload-data="accessPwd ? { accessPwd } : {}"
+                :api-base="apiBase"
+                @change="onChange"
+                @error="onSignError"
+              />
+            </div>
+          </div>
+          <div v-else-if="q.qType === 'signature'" class="signature-box">
+            <label>
+              {{ questionNo(q) }}. {{ q.title }}
+              <span class="req" v-if="q.required === '1'">*</span>
+            </label>
+            <SurveySignaturePad
+              v-model="form[q.questionId]"
+              :pen-color="q._penColor || '#111111'"
+              :pad-height="q._padHeight || 160"
+              :upload-url="surveyUploadUrl(code)"
+              :upload-data="accessPwd ? { accessPwd } : {}"
+              :api-base="apiBase"
+              @change="onChange"
+              @error="onSignError"
+            />
           </div>
           <template v-else>
             <label>
@@ -176,19 +225,19 @@
         </div>
           </div>
         </Transition>
-        <div v-if="needCaptcha && (fillMode !== 'step' || isLastStep)" class="captcha-row">
+        <div v-if="needCaptcha && (fillMode === 'all' || isLastStep)" class="captcha-row">
           <input v-model="captchaCode" placeholder="验证码" maxlength="6" />
           <img v-if="captchaUrl" :src="captchaUrl" alt="captcha" @click="refreshCaptcha" />
           <button type="button" class="btn link" @click="refreshCaptcha">换一张</button>
         </div>
-        <div class="actions" :class="{ step: fillMode === 'step' }">
-          <button v-if="fillMode === 'step'" class="btn" type="button" :disabled="stepIndex <= 0" @click="prevStep">上一题</button>
+        <div class="actions" :class="{ step: fillMode === 'step' || fillMode === 'pages' }">
+          <button v-if="fillMode === 'step' || fillMode === 'pages'" class="btn" type="button" :disabled="stepIndex <= 0" @click="prevStep">{{ fillMode === 'pages' ? '上一页' : '上一题' }}</button>
           <button
-            v-if="fillMode === 'step' && !isLastStep"
+            v-if="(fillMode === 'step' || fillMode === 'pages') && !isLastStep"
             class="btn primary"
             type="button"
             @click="nextStep"
-          >下一题</button>
+          >{{ fillMode === 'pages' ? '下一页' : '下一题' }}</button>
           <button
             v-else
             class="btn primary"
@@ -208,14 +257,21 @@
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { surveyMeta, surveySubmit, surveyUploadUrl, getCaptchaImage, surveyDraft, saveSurveyDraft } from '@/api/open'
+import SurveySignaturePad from '@/components/SurveySignaturePad.vue'
 import {
   normalizeQuestion,
   defaultAnswerValue,
   resolveVisibleQuestions,
   validateSurveyAnswers,
+  groupVisibleIntoPages,
+  questionDisplayNo,
+  isDisplayOnly,
   NUMERIC_TYPES,
   effectiveUploadMaxMb,
-  placeholderOf
+  placeholderOf,
+  getBoundSignatures,
+  withoutEmbeddedSignatures,
+  expandWithBoundSignatures
 } from '@/utils/bizSurveyQuestion'
 import {
   getOrCreateClientToken,
@@ -228,6 +284,7 @@ import {
 
 const route = useRoute()
 const code = computed(() => route.params.code)
+const apiBase = import.meta.env.VITE_APP_BASE_API || ''
 const metaLoading = ref(false)
 const submitting = ref(false)
 const submitted = ref(false)
@@ -259,30 +316,56 @@ const pageStyle = computed(() => ({
   background: (theme.value && theme.value.bg) || undefined
 }))
 
-const fillMode = computed(() => ((theme.value && theme.value.fillMode) === 'step' ? 'step' : 'all'))
+const fillMode = computed(() => {
+  const m = theme.value && theme.value.fillMode
+  return m === 'step' || m === 'pages' ? m : 'all'
+})
 
 const visibleQuestions = computed(() => {
   void tick.value
   return resolveVisibleQuestions(questions.value, q => form[q.questionId])
 })
 
+const pages = computed(() => groupVisibleIntoPages(withoutEmbeddedSignatures(visibleQuestions.value, questions.value)))
+
+const stepQuestionList = computed(() => withoutEmbeddedSignatures(
+  visibleQuestions.value.filter(q => q.qType !== 'page_break'),
+  questions.value
+))
+
+const currentPageTitle = computed(() => {
+  if (fillMode.value !== 'pages') return ''
+  const page = pages.value[stepIndex.value]
+  return (page && page.title) || ''
+})
+
 const displayQuestions = computed(() => {
-  const list = visibleQuestions.value
-  if (fillMode.value !== 'step') return list
-  if (!list.length) return []
-  const i = Math.min(Math.max(stepIndex.value, 0), list.length - 1)
-  return [list[i]]
+  if (fillMode.value === 'pages') {
+    const page = pages.value[Math.min(Math.max(stepIndex.value, 0), Math.max(pages.value.length - 1, 0))]
+    return (page && page.questions) || []
+  }
+  if (fillMode.value === 'step') {
+    const list = stepQuestionList.value
+    if (!list.length) return []
+    const i = Math.min(Math.max(stepIndex.value, 0), list.length - 1)
+    return [list[i]]
+  }
+  return stepQuestionList.value
 })
 
 const stepProgress = computed(() => {
-  const total = visibleQuestions.value.length
+  const total = fillMode.value === 'pages' ? pages.value.length : stepQuestionList.value.length
   if (!total) return 0
   return Math.round(((Math.min(stepIndex.value, total - 1) + 1) / total) * 100)
 })
 
-const isLastStep = computed(() => stepIndex.value >= Math.max(0, visibleQuestions.value.length - 1))
+const isLastStep = computed(() => {
+  const total = fillMode.value === 'pages' ? pages.value.length : stepQuestionList.value.length
+  return stepIndex.value >= Math.max(0, total - 1)
+})
 const stepAnim = computed(() => (stepDir.value < 0 ? 'step-prev' : 'step-next'))
 const stepStageKey = computed(() => {
+  if (fillMode.value === 'pages') return 'page-' + stepIndex.value
   if (fillMode.value !== 'step') return 'all'
   const q = displayQuestions.value[0]
   return q ? q.questionId : 'empty'
@@ -304,8 +387,9 @@ function h5MaxLength(q) {
   return q._maxLength || undefined
 }
 
-watch(visibleQuestions, (list) => {
-  if (stepIndex.value >= list.length) stepIndex.value = Math.max(0, list.length - 1)
+watch(visibleQuestions, () => {
+  const total = fillMode.value === 'pages' ? pages.value.length : stepQuestionList.value.length
+  if (stepIndex.value >= total) stepIndex.value = Math.max(0, total - 1)
 })
 
 function setMatrix(q, row, val) {
@@ -350,6 +434,15 @@ function onChange() {
     }
   })
   scheduleDraftSave()
+}
+
+function onAgree(q, ev) {
+  form[q.questionId] = ev.target.checked ? '1' : ''
+  onChange()
+}
+
+function onSignError(e) {
+  error.value = (e && e.message) || '签名上传失败'
 }
 
 function scheduleDraftSave() {
@@ -475,14 +568,12 @@ async function refreshCaptcha() {
 }
 
 function questionNo(q) {
-  const list = visibleQuestions.value
-  let n = 0
-  for (const item of list) {
-    if (item.qType === 'section') continue
-    n++
-    if (item.questionId === q.questionId) return n
-  }
-  return n || 1
+  return questionDisplayNo(visibleQuestions.value, q) || 1
+}
+
+function boundSignaturesOf(q) {
+  if (!q || q.qType !== 'agreement') return []
+  return getBoundSignatures(q, visibleQuestions.value)
 }
 
 function prevStep() {
@@ -496,7 +587,10 @@ function prevStep() {
 
 function nextStep() {
   error.value = ''
-  const r = validateSurveyAnswers(displayQuestions.value, q => form[q.questionId])
+  const r = validateSurveyAnswers(
+    expandWithBoundSignatures(displayQuestions.value, visibleQuestions.value),
+    q => form[q.questionId]
+  )
   if (!r.ok) {
     error.value = r.message
     return false
@@ -538,7 +632,7 @@ async function submit() {
   }
   submitting.value = true
   try {
-    const answers = visibleQuestions.value.filter(q => q.qType !== 'section').map(q => ({
+    const answers = visibleQuestions.value.filter(q => !isDisplayOnly(q.qType)).map(q => ({
       questionId: q.questionId,
       value: NUMERIC_TYPES.includes(q.qType)
         ? String(form[q.questionId] == null ? '' : form[q.questionId])
@@ -588,10 +682,34 @@ onUnmounted(() => { if (draftTimer) clearTimeout(draftTimer); if (autoAdvanceTim
 }
 .actions.step { display: flex; gap: 10px; }
 .actions.step .btn { flex: 1; }
+.page-title { font-size: 16px; font-weight: 650; color: var(--text); margin: 0 0 14px; }
 
 .section-box { padding: 8px 0 4px; border-bottom: 1px dashed var(--border); margin-bottom: 8px; }
 .section-box h3 { margin: 0 0 4px; font-size: 16px; color: var(--theme); }
 .section-box p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.agreement-box {
+  border: 1px solid var(--border); border-radius: 12px; padding: 12px; background: #fafafa;
+}
+.agree-body {
+  max-height: 200px; overflow: auto; margin: 8px 0 12px; padding: 10px;
+  background: #fff; border-radius: 8px; border: 1px solid #eef2f7;
+  font-size: 13px; line-height: 1.55; color: var(--text);
+}
+.agree-body :deep(p) { margin: 0 0 8px; }
+.agree-check { margin-top: 4px; }
+.agree-sign {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border, #e5e7eb);
+}
+.agree-sign-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.signature-box { margin-top: 4px; }
 
 .img-opts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .img-opt {

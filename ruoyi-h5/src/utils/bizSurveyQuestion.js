@@ -23,6 +23,9 @@ export const TYPE_LABELS = {
   slider: '滑块',
   file: '附件',
   section: '说明段落',
+  page_break: '分页符',
+  agreement: '协议同意',
+  signature: '手写签名',
   matrix_radio: '矩阵单选',
   cascade_select: '级联选择'
 }
@@ -31,6 +34,12 @@ export const JUMP_TYPES = ['radio', 'select', 'yesno', 'image_radio', 'likert']
 export const CHOICE_TYPES = ['radio', 'checkbox', 'select', 'yesno', 'image_radio', 'image_checkbox', 'likert', 'cascade_select']
 export const MULTI_CHOICE_TYPES = ['checkbox', 'image_checkbox']
 export const NUMERIC_TYPES = ['rate', 'nps', 'slider', 'number']
+export const DISPLAY_ONLY_TYPES = ['section', 'page_break']
+
+/** Structural / non-answerable question types (section, page_break). */
+export function isDisplayOnly(type) {
+  return DISPLAY_ONLY_TYPES.includes(type)
+}
 
 /** Server hard ceiling; design page maxSizeMb must not exceed this. */
 export const SURVEY_UPLOAD_HARD_MAX_MB = 10
@@ -115,6 +124,11 @@ export function normalizeQuestion(q, i, opts) {
     _leftLabel: props.leftLabel || '',
     _rightLabel: props.rightLabel || '',
     _content: props.content || '',
+    _agreeLabel: props.agreeLabel || '我已阅读并同意',
+    _bindAgreementSort: props.bindAgreementSort != null && props.bindAgreementSort !== ''
+      ? Number(props.bindAgreementSort) : null,
+    _penColor: props.penColor || '#111111',
+    _padHeight: props.padHeight != null ? Number(props.padHeight) : 160,
     _visibleIf: props.visibleIf || null,
     _rows: Array.isArray(props.rows) ? props.rows : [],
     sort: q.sort == null ? i : q.sort
@@ -169,10 +183,13 @@ function matchesVisibleIf(q, questions, getAnswer) {
 }
 
 function isEmptyAnswer(q, v) {
-  if (q.qType === 'file') {
+  if (q.qType === 'file' || q.qType === 'signature') {
     if (!v) return true
     if (typeof v === 'object') return !v.fileName
     return String(v).trim() === ''
+  }
+  if (q.qType === 'agreement') {
+    return v !== '1' && v !== 1 && v !== true
   }
   if (MULTI_CHOICE_TYPES.includes(q.qType) || q.qType === 'cascade_select') return !v || !v.length
   if (q.qType === 'rate') return v === undefined || v === null || v === '' || Number(v) <= 0
@@ -183,13 +200,121 @@ function isEmptyAnswer(q, v) {
 }
 
 /**
+ * Split visible questions into pages by page_break markers.
+ * Consecutive breaks collapse; trailing empty page dropped.
+ * @returns {{ title: string, questions: Array }[]}
+ */
+export function groupVisibleIntoPages(visibleQuestions) {
+  const pages = []
+  let current = { title: '', questions: [] }
+  for (const q of visibleQuestions || []) {
+    if (q.qType === 'page_break') {
+      if (current.questions.length) {
+        pages.push(current)
+        current = { title: (q.title || '').trim(), questions: [] }
+      } else if ((q.title || '').trim()) {
+        current.title = (q.title || '').trim()
+      }
+      continue
+    }
+    current.questions.push(q)
+  }
+  if (current.questions.length) pages.push(current)
+  return pages.length ? pages : [{ title: '', questions: [] }]
+}
+
+/** 1-based display number among answerable questions in the full visible list. */
+export function questionDisplayNo(visibleQuestions, q) {
+  if (!q || isDisplayOnly(q.qType)) return ''
+  let n = 0
+  for (const item of visibleQuestions || []) {
+    if (isDisplayOnly(item.qType)) continue
+    n++
+    if (item === q || (item.questionId != null && item.questionId === q.questionId)) return n
+  }
+  return n
+}
+
+function sortOf(q, fallbackIndex) {
+  if (q && q.sort != null && q.sort !== '') {
+    const n = Number(q.sort)
+    if (Number.isFinite(n)) return n
+  }
+  return fallbackIndex
+}
+
+/** Signature bound to an agreement question (rendered under that agreement). */
+export function isEmbeddedSignature(q, allQuestions) {
+  if (!q || q.qType !== 'signature') return false
+  if (q._bindAgreementSort == null || q._bindAgreementSort === '') return false
+  const bind = Number(q._bindAgreementSort)
+  if (!Number.isFinite(bind)) return false
+  return (allQuestions || []).some((x, i) => x.qType === 'agreement' && sortOf(x, i) === bind)
+}
+
+/** Visible signatures bound to a given agreement (same sort / bindAgreementSort). */
+export function getBoundSignatures(agreementQ, visibleQuestions) {
+  if (!agreementQ || agreementQ.qType !== 'agreement') return []
+  const target = Number(agreementQ.sort)
+  if (!Number.isFinite(target)) return []
+  return (visibleQuestions || []).filter(q =>
+    q.qType === 'signature'
+    && q._bindAgreementSort != null
+    && q._bindAgreementSort !== ''
+    && Number(q._bindAgreementSort) === target
+  )
+}
+
+/** Drop bound signatures from top-level lists; they render inside the agreement. */
+export function withoutEmbeddedSignatures(list, allQuestions) {
+  const pool = allQuestions || list || []
+  return (list || []).filter(q => !isEmbeddedSignature(q, pool))
+}
+
+/** Include nested bound signatures after each agreement (for validation). */
+export function expandWithBoundSignatures(displayList, allVisible) {
+  const out = []
+  const seen = new Set()
+  const mark = (q) => {
+    const id = q && (q.questionId != null ? 'id:' + q.questionId : (q._key != null ? 'k:' + q._key : null))
+    if (id) {
+      if (seen.has(id)) return false
+      seen.add(id)
+    }
+    return true
+  }
+  for (const q of displayList || []) {
+    if (!mark(q)) continue
+    out.push(q)
+    if (q.qType === 'agreement') {
+      getBoundSignatures(q, allVisible).forEach(sq => {
+        if (mark(sq)) out.push(sq)
+      })
+    }
+  }
+  return out
+}
+
+/**
  * Client-side validation aligned with backend BizSurveyServiceImpl.validateAnswerProps.
  * @returns {{ ok: true } | { ok: false, message: string }}
  */
 export function validateSurveyAnswers(visibleQuestions, getValue) {
   for (const q of visibleQuestions || []) {
-    if (q.qType === 'section') continue
+    if (isDisplayOnly(q.qType)) continue
     let v = getValue(q)
+    if (q.qType === 'agreement') {
+      if (q.required === '1' && isEmptyAnswer(q, v)) {
+        return { ok: false, message: '请阅读并同意：' + (q.title || '协议') }
+      }
+      continue
+    }
+    if (q.qType === 'signature') {
+      if (q.required === '1' && isEmptyAnswer(q, v)) {
+        return { ok: false, message: '请完成签名：' + (q.title || '手写签名') }
+      }
+      continue
+    }
     if (q.qType === 'cascade_select') {
       const path = Array.isArray(v) ? v : (typeof v === 'string' && v.trim().startsWith('[') ? (() => { try { return JSON.parse(v) } catch (e) { return [] } })() : (v ? [v] : []))
       if (q.required === '1' && (!path || !path.length)) return { ok: false, message: '请完成必填题：' + q.title }

@@ -5,15 +5,62 @@
       <p>{{ question._content || '' }}</p>
     </div>
     <template v-else>
-      <div class="q-label" v-if="showLabel">
+      <div class="q-label" v-if="showLabel && question.qType !== 'agreement'">
         <span class="idx" v-if="indexLabel != null">{{ indexLabel }}.</span>
         <span>{{ question.title }}</span>
         <el-tag v-if="showTypeTag" size="mini" type="info" class="type-tag">{{ typeLabel(question.qType) }}</el-tag>
         <span class="req" v-if="question.required === '1'">*</span>
       </div>
 
+      <div v-if="question.qType === 'agreement'" class="agreement-box">
+        <div class="q-label" v-if="showLabel">
+          <span class="idx" v-if="indexLabel != null">{{ indexLabel }}.</span>
+          <span>{{ question.title }}</span>
+          <el-tag v-if="showTypeTag" size="mini" type="info" class="type-tag">{{ typeLabel(question.qType) }}</el-tag>
+          <span class="req" v-if="question.required === '1'">*</span>
+        </div>
+        <div class="agree-body" v-html="question._content || ''" />
+        <el-checkbox
+          :value="value === '1' || value === 1 || value === true"
+          @change="onAgreeChange"
+        >{{ question._agreeLabel || '我已阅读并同意' }}</el-checkbox>
+        <div
+          v-for="sq in boundSignatures"
+          :key="sq._key || sq.questionId"
+          class="agree-sign"
+        >
+          <div class="agree-sign-label">
+            <span>{{ sq.title || '手写签名' }}</span>
+            <span class="req" v-if="sq.required === '1'">*</span>
+          </div>
+          <survey-signature-pad
+            :value="boundAnswerOf(sq)"
+            :pen-color="sq._penColor || '#111111'"
+            :pad-height="sq._padHeight || 160"
+            :upload-url="mode === 'open' ? uploadUrl : ''"
+            :upload-data="uploadData"
+            :mode="mode"
+            @input="v => onBoundInput(sq, v)"
+            @change="() => onBoundChange(sq)"
+          />
+        </div>
+      </div>
+
+      <div v-else-if="question.qType === 'signature'" class="signature-box">
+        <survey-signature-pad
+          :value="value"
+          :pen-color="question._penColor || '#111111'"
+          :pad-height="question._padHeight || 160"
+          :upload-url="mode === 'open' ? uploadUrl : ''"
+          :upload-data="uploadData"
+          :mode="mode"
+          @input="emitValue"
+          @change="emitChange"
+        />
+      </div>
+
       <el-radio-group
-        v-if="question.qType === 'radio' || question.qType === 'yesno'"
+        v-else-if="question.qType === 'radio' || question.qType === 'yesno'"
         class="opt-cards"
         :value="value"
         @input="emitValue"
@@ -249,9 +296,11 @@
 
 <script>
 import { typeLabel, placeholderOf, effectiveUploadMaxMb } from '@/utils/bizSurveyQuestion'
+import SurveySignaturePad from '@/components/biz/SurveySignaturePad'
 
 export default {
   name: 'SurveyQuestionField',
+  components: { SurveySignaturePad },
   props: {
     question: { type: Object, required: true },
     value: { default: undefined },
@@ -261,7 +310,12 @@ export default {
     indexLabel: { type: [Number, String], default: null },
     uploadUrl: { type: String, default: '' },
     uploadData: { type: Object, default: () => ({}) },
-    fileList: { type: Array, default: () => [] }
+    fileList: { type: Array, default: () => [] },
+    /** Signatures bound to this agreement (shown under protocol body). */
+    boundSignatures: { type: Array, default: () => [] },
+    boundForm: { type: Object, default: () => ({}) },
+    /** form key field on bound signature questions: questionId | _key */
+    boundKeyField: { type: String, default: 'questionId' }
   },
   computed: {
     uploadMaxMb() {
@@ -280,6 +334,19 @@ export default {
       const n = Number(v)
       return Number.isFinite(n) ? n : d
     },
+    boundKeyOf(sq) {
+      return this.boundKeyField === '_key' ? sq._key : sq.questionId
+    },
+    boundAnswerOf(sq) {
+      const k = this.boundKeyOf(sq)
+      return k != null ? this.boundForm[k] : ''
+    },
+    onBoundInput(sq, v) {
+      this.$emit('bound-input', sq, v)
+    },
+    onBoundChange(sq) {
+      this.$emit('bound-change', sq)
+    },
     emitValue(v) {
       this.$emit('input', v)
     },
@@ -288,6 +355,10 @@ export default {
     },
     pick(v) {
       this.emitValue(v)
+      this.emitChange()
+    },
+    onAgreeChange(checked) {
+      this.emitValue(checked ? '1' : '')
       this.emitChange()
     },
     isMultiOn(val) {
@@ -371,6 +442,28 @@ export default {
 .section-box { background: #f8fafc; border: 1px dashed #dbe3ef; border-radius: 10px; padding: 14px; }
 .section-box h4 { margin: 0 0 6px; color: #0f172a; }
 .section-box p { margin: 0; color: #64748b; white-space: pre-wrap; line-height: 1.6; }
+.agreement-box {
+  border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px 14px; background: #fafafa;
+}
+.agree-body {
+  max-height: 220px; overflow: auto; margin-bottom: 12px; padding: 10px 12px;
+  background: #fff; border-radius: 8px; border: 1px solid #eef2f7;
+  font-size: 13px; line-height: 1.6; color: #334155;
+}
+.agree-body >>> p { margin: 0 0 8px; }
+.agree-sign {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed #e5e7eb;
+}
+.agree-sign-label {
+  font-size: 13px;
+  color: #334155;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.agree-sign-label .req { color: #f56c6c; margin-left: 2px; }
+.signature-box { margin-top: 4px; }
 .nps-labels { display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8; margin-bottom: 8px; }
 .nps-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .nps-btn {

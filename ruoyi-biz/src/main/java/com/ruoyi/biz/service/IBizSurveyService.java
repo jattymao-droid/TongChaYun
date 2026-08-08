@@ -34,6 +34,14 @@ public interface IBizSurveyService
 
     Map<String, Object> selectStats(Long surveyId);
 
+    /**
+     * Answer matrix for stats: rows = questions (+ meta), columns = respondents.
+     * @param pageNum 1-based respondent page
+     * @param pageSize respondents per page (columns)
+     * @param validFlag optional filter: 1 valid / 0 invalid / null all
+     */
+    Map<String, Object> selectAnswerMatrix(Long surveyId, Integer pageNum, Integer pageSize, String validFlag);
+
     Map<String, Object> selectCrossStats(Long surveyId, Long q1Id, Long q2Id);
 
     Map<String, Object> openMeta(String code, String accessPwd);

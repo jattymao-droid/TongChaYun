@@ -48,6 +48,14 @@ export function getSurveyStats(surveyId) {
   return request({ url: '/biz/survey/stats/' + surveyId, method: 'get' })
 }
 
+export function getSurveyAnswerMatrix(surveyId, query) {
+  return request({
+    url: '/biz/survey/stats/' + surveyId + '/answers',
+    method: 'get',
+    params: query || {}
+  })
+}
+
 export function getSurveyCrossStats(surveyId, q1, q2) {
   return request({
     url: '/biz/survey/stats/' + surveyId + '/cross',

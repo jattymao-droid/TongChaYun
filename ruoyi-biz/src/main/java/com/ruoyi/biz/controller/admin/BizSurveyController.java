@@ -136,6 +136,16 @@ public class BizSurveyController extends BaseController
     }
 
     @PreAuthorize("@ss.hasPermi('biz:survey:query')")
+    @GetMapping("/stats/{surveyId}/answers")
+    public AjaxResult answerMatrix(@PathVariable Long surveyId,
+        @RequestParam(value = "pageNum", required = false) Integer pageNum,
+        @RequestParam(value = "pageSize", required = false) Integer pageSize,
+        @RequestParam(value = "validFlag", required = false) String validFlag)
+    {
+        return success(surveyService.selectAnswerMatrix(surveyId, pageNum, pageSize, validFlag));
+    }
+
+    @PreAuthorize("@ss.hasPermi('biz:survey:query')")
     @GetMapping("/stats/{surveyId}/cross")
     public AjaxResult crossStats(@PathVariable Long surveyId,
         @RequestParam("q1") Long q1,

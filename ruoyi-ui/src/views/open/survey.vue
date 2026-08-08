@@ -15,35 +15,42 @@
     </div>
 
     <div class="panel" v-loading="metaLoading" v-else>
-      <template v-if="!submitted && visibleQuestions.length">
-        <div v-if="fillMode === 'step'" class="step-progress">
+      <template v-if="!submitted && (fillMode === 'pages' ? pages.length && pages[0].questions.length : visibleQuestions.length)">
+        <div v-if="fillMode === 'step' || fillMode === 'pages'" class="step-progress">
           <div class="step-track"><i :style="{ width: stepProgress + '%' }" /></div>
-          <span>{{ stepIndex + 1 }} / {{ visibleQuestions.length }}</span>
+          <span v-if="fillMode === 'pages'">{{ stepIndex + 1 }} / {{ pages.length }} 页</span>
+          <span v-else>{{ stepIndex + 1 }} / {{ stepQuestionList.length }}</span>
         </div>
+        <div v-if="fillMode === 'pages' && currentPageTitle" class="page-title">{{ currentPageTitle }}</div>
         <div v-for="q in displayQuestions" :key="q.questionId" class="q-block">
           <survey-question-field
             :question="q"
             v-model="form[q.questionId]"
             mode="open"
-            :index-label="q.qType === 'section' ? null : questionNo(q)"
+            :index-label="isDisplayOnly(q.qType) ? null : questionNo(q)"
             :upload-url="uploadUrl"
             :upload-data="uploadData"
             :file-list="fileListMap[q.questionId] || []"
+            :bound-signatures="boundSignaturesOf(q)"
+            :bound-form="form"
+            bound-key-field="questionId"
             @change="() => onAnswerChange(q)"
+            @bound-input="onBoundInput"
+            @bound-change="(sq) => onAnswerChange(sq)"
             @file-success="(res, file) => onFileSuccess(q, res, file)"
             @file-remove="() => onFileRemove(q)"
             @file-error="onFileError"
           />
         </div>
 
-        <div v-if="needCaptcha && (fillMode !== 'step' || isLastStep)" class="captcha-row">
+        <div v-if="needCaptcha && (fillMode === 'all' || isLastStep)" class="captcha-row">
           <el-input v-model="captchaCode" placeholder="验证码" size="small" style="width:140px" @keyup.enter.native="handleSubmit" />
           <img v-if="captchaUrl" :src="captchaUrl" class="captcha-img" alt="captcha" @click="refreshCaptcha" />
           <el-button type="text" size="mini" @click="refreshCaptcha">换一张</el-button>
         </div>
-        <div class="actions step-actions" v-if="fillMode === 'step'">
-          <el-button :disabled="stepIndex <= 0" @click="prevStep">上一题</el-button>
-          <el-button v-if="!isLastStep" type="primary" class="theme-btn" @click="nextStep">下一题</el-button>
+        <div class="actions step-actions" v-if="fillMode === 'step' || fillMode === 'pages'">
+          <el-button :disabled="stepIndex <= 0" @click="prevStep">{{ fillMode === 'pages' ? '上一页' : '上一题' }}</el-button>
+          <el-button v-if="!isLastStep" type="primary" class="theme-btn" @click="nextStep">{{ fillMode === 'pages' ? '下一页' : '下一题' }}</el-button>
           <el-button v-else type="primary" class="theme-btn" :loading="submitting" @click="handleSubmit">提交</el-button>
         </div>
         <div class="actions" v-else>
@@ -71,7 +78,13 @@ import {
   defaultAnswerValue,
   resolveVisibleQuestions,
   validateSurveyAnswers,
-  NUMERIC_TYPES
+  groupVisibleIntoPages,
+  questionDisplayNo,
+  isDisplayOnly,
+  NUMERIC_TYPES,
+  getBoundSignatures,
+  withoutEmbeddedSignatures,
+  expandWithBoundSignatures
 } from '@/utils/bizSurveyQuestion'
 import {
   getOrCreateClientToken,
@@ -124,30 +137,58 @@ export default {
     },
     uploadUrl() { return openSurveyUploadUrl(this.code) },
     uploadData() { return this.accessPwd ? { accessPwd: this.accessPwd } : {} },
-    fillMode() { return (this.theme && this.theme.fillMode) === 'step' ? 'step' : 'all' },
+    fillMode() {
+      const m = this.theme && this.theme.fillMode
+      return m === 'step' || m === 'pages' ? m : 'all'
+    },
     visibleQuestions() {
       void this.tick
       return resolveVisibleQuestions(this.questions, q => this.form[q.questionId])
     },
+    pages() {
+      return groupVisibleIntoPages(withoutEmbeddedSignatures(this.visibleQuestions, this.questions))
+    },
+    stepQuestionList() {
+      return withoutEmbeddedSignatures(
+        this.visibleQuestions.filter(q => q.qType !== 'page_break'),
+        this.questions
+      )
+    },
+    currentPageTitle() {
+      if (this.fillMode !== 'pages') return ''
+      const page = this.pages[this.stepIndex]
+      return (page && page.title) || ''
+    },
     displayQuestions() {
-      const list = this.visibleQuestions
-      if (this.fillMode !== 'step') return list
-      if (!list.length) return []
-      const i = Math.min(Math.max(this.stepIndex, 0), list.length - 1)
-      return [list[i]]
+      if (this.fillMode === 'pages') {
+        const page = this.pages[Math.min(Math.max(this.stepIndex, 0), Math.max(this.pages.length - 1, 0))]
+        return (page && page.questions) || []
+      }
+      if (this.fillMode === 'step') {
+        const list = this.stepQuestionList
+        if (!list.length) return []
+        const i = Math.min(Math.max(this.stepIndex, 0), list.length - 1)
+        return [list[i]]
+      }
+      return withoutEmbeddedSignatures(
+        this.visibleQuestions.filter(q => q.qType !== 'page_break'),
+        this.questions
+      )
     },
     stepProgress() {
-      const total = this.visibleQuestions.length
+      const total = this.fillMode === 'pages' ? this.pages.length : this.stepQuestionList.length
       if (!total) return 0
       return Math.round(((Math.min(this.stepIndex, total - 1) + 1) / total) * 100)
     },
     isLastStep() {
-      return this.stepIndex >= Math.max(0, this.visibleQuestions.length - 1)
+      const total = this.fillMode === 'pages' ? this.pages.length : this.stepQuestionList.length
+      return this.stepIndex >= Math.max(0, total - 1)
     }
   },
   watch: {
-    visibleQuestions(list) {
-      if (this.stepIndex >= list.length) this.stepIndex = Math.max(0, list.length - 1)
+    visibleQuestions() {
+      const total = this.fillMode === 'pages' ? this.pages.length : this.stepQuestionList.length
+      if (this.stepIndex >= total) this.stepIndex = Math.max(0, total - 1)
     }
   },
   created() {
@@ -161,6 +202,16 @@ export default {
     if (this.autoAdvanceTimer) clearTimeout(this.autoAdvanceTimer)
   },
   methods: {
+    isDisplayOnly,
+    boundSignaturesOf(q) {
+      if (!q || q.qType !== 'agreement') return []
+      return getBoundSignatures(q, this.visibleQuestions)
+    },
+    onBoundInput(sq, v) {
+      if (!sq || sq.questionId == null) return
+      this.$set(this.form, sq.questionId, v)
+      this.onAnswerChange(sq)
+    },
     onAnswerChange(q) {
       this.tick++
       const vis = new Set(this.visibleQuestions.map(x => String(x.questionId)))
@@ -292,19 +343,16 @@ export default {
       this.loadMeta()
     },
     questionNo(q) {
-      let n = 0
-      for (const item of this.visibleQuestions) {
-        if (item.qType === 'section') continue
-        n++
-        if (item.questionId === q.questionId) return n
-      }
-      return n || 1
+      return questionDisplayNo(this.visibleQuestions, q) || 1
     },
     prevStep() {
       if (this.stepIndex > 0) this.stepIndex--
     },
     nextStep() {
-      const r = validateSurveyAnswers(this.displayQuestions, q => this.form[q.questionId])
+      const r = validateSurveyAnswers(
+        expandWithBoundSignatures(this.displayQuestions, this.visibleQuestions),
+        q => this.form[q.questionId]
+      )
       if (!r.ok) {
         this.$message.warning(r.message)
         return
@@ -312,7 +360,7 @@ export default {
       if (!this.isLastStep) this.stepIndex++
     },
     displayIndex(idx) {
-      return this.visibleQuestions.slice(0, idx + 1).filter(x => x.qType !== 'section').length
+      return this.visibleQuestions.slice(0, idx + 1).filter(x => !isDisplayOnly(x.qType)).length
     },
     validateClient() {
       const r = validateSurveyAnswers(this.visibleQuestions, q => this.form[q.questionId])
@@ -337,7 +385,7 @@ export default {
         this.$message.warning('请输入验证码')
         return
       }
-      const answers = this.visibleQuestions.filter(q => q.qType !== 'section').map(q => ({
+      const answers = this.visibleQuestions.filter(q => !isDisplayOnly(q.qType)).map(q => ({
         questionId: q.questionId,
         value: NUMERIC_TYPES.includes(q.qType)
           ? String(this.form[q.questionId] == null ? '' : this.form[q.questionId])
@@ -397,4 +445,5 @@ export default {
 .step-track i { display: block; height: 100%; width: 0; background: var(--theme); border-radius: inherit; transition: width .25s ease; }
 .step-actions { display: flex; gap: 10px; }
 .step-actions .el-button { flex: 1; }
+.page-title { font-size: 16px; font-weight: 650; color: #1f2937; margin: 0 0 14px; }
 </style>

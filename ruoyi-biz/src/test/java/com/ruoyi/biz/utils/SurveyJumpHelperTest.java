@@ -69,6 +69,34 @@ class SurveyJumpHelperTest
         assertEquals(2, SurveyJumpHelper.visibleQuestions(qs, new HashMap<>()).size());
     }
 
+    @Test
+    void jumpOntoPageBreakLandsOnFollowingQuestion()
+    {
+        List<BizSurveyQuestion> qs = new ArrayList<>();
+        qs.add(q(1L, "radio", "Q1", 0, "{\"jumps\":[{\"value\":\"B\",\"toSort\":1}]}"));
+        qs.add(q(2L, "page_break", "", 1, null));
+        qs.add(q(3L, "input", "Q3", 2, null));
+
+        Map<Long, String> answers = new HashMap<>();
+        answers.put(1L, "B");
+        List<Long> ids = SurveyJumpHelper.visibleQuestions(qs, answers).stream()
+            .map(BizSurveyQuestion::getQuestionId).collect(Collectors.toList());
+        assertEquals(List.of(1L, 3L), ids);
+    }
+
+    @Test
+    void sequentialKeepsPageBreakInPath()
+    {
+        List<BizSurveyQuestion> qs = new ArrayList<>();
+        qs.add(q(1L, "input", "A", 0, null));
+        qs.add(q(2L, "page_break", "Next", 1, null));
+        qs.add(q(3L, "input", "B", 2, null));
+        List<Long> ids = SurveyJumpHelper.visibleQuestions(qs, new HashMap<>()).stream()
+            .map(BizSurveyQuestion::getQuestionId).collect(Collectors.toList());
+        assertEquals(List.of(1L, 2L, 3L), ids);
+        assertTrue(SurveyJumpHelper.isDisplayOnly("page_break"));
+    }
+
     private static BizSurveyQuestion q(Long id, String type, String title, int sort, String props)
     {
         BizSurveyQuestion q = new BizSurveyQuestion();
