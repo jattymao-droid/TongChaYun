@@ -28,6 +28,23 @@
         </foreach>
     </insert>
 
+    <update id="updateQuestion" parameterType="BizSurveyQuestion">
+        update biz_survey_question
+        set q_type = #{qType},
+            title = #{title},
+            required = #{required},
+            options_json = #{optionsJson},
+            props_json = #{propsJson},
+            sort = #{sort}
+        where question_id = #{questionId}
+          and survey_id = #{surveyId}
+    </update>
+
+    <delete id="deleteByIds">
+        delete from biz_survey_question where question_id in
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
     <delete id="deleteBySurveyId" parameterType="Long">
         delete from biz_survey_question where survey_id = #{surveyId}
     </delete>

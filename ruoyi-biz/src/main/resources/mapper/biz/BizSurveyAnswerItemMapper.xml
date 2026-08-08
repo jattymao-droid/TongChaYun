@@ -13,7 +13,8 @@
 
     <select id="selectByAnswerId" parameterType="Long" resultMap="ItemResult">
         select i.item_id, i.answer_id, i.question_id, i.answer_value,
-               q.title as question_title, q.q_type
+               coalesce(nullif(i.question_title, ''), q.title) as question_title,
+               coalesce(nullif(i.q_type, ''), q.q_type) as q_type
         from biz_survey_answer_item i
         left join biz_survey_question q on q.question_id = i.question_id
         where i.answer_id = #{answerId}
@@ -22,7 +23,8 @@
 
     <select id="selectBySurveyId" parameterType="Long" resultMap="ItemResult">
         select i.item_id, i.answer_id, i.question_id, i.answer_value,
-               q.title as question_title, q.q_type
+               coalesce(nullif(i.question_title, ''), q.title) as question_title,
+               coalesce(nullif(i.q_type, ''), q.q_type) as q_type
         from biz_survey_answer_item i
         inner join biz_survey_answer a on a.answer_id = i.answer_id
         left join biz_survey_question q on q.question_id = i.question_id
@@ -32,7 +34,8 @@
 
     <select id="selectByAnswerIds" resultMap="ItemResult">
         select i.item_id, i.answer_id, i.question_id, i.answer_value,
-               q.title as question_title, q.q_type
+               coalesce(nullif(i.question_title, ''), q.title) as question_title,
+               coalesce(nullif(i.q_type, ''), q.q_type) as q_type
         from biz_survey_answer_item i
         left join biz_survey_question q on q.question_id = i.question_id
         where i.answer_id in
@@ -41,9 +44,9 @@
     </select>
 
     <insert id="batchInsert" parameterType="java.util.List">
-        insert into biz_survey_answer_item (answer_id, question_id, answer_value) values
+        insert into biz_survey_answer_item (answer_id, question_id, answer_value, question_title, q_type) values
         <foreach collection="list" item="item" separator=",">
-            (#{item.answerId}, #{item.questionId}, #{item.answerValue})
+            (#{item.answerId}, #{item.questionId}, #{item.answerValue}, #{item.questionTitle}, #{item.qType})
         </foreach>
     </insert>
 

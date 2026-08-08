@@ -20,19 +20,24 @@ import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import com.ruoyi.biz.domain.BizSurvey;
+import com.ruoyi.biz.domain.BizSurveyAdmin;
 import com.ruoyi.biz.domain.BizSurveyAnswer;
 import com.ruoyi.biz.domain.BizSurveyAnswerItem;
 import com.ruoyi.biz.domain.BizSurveyDraft;
 import com.ruoyi.biz.domain.BizSurveyQuestion;
 import com.ruoyi.biz.domain.vo.BizSurveyDetailVo;
+import com.ruoyi.biz.mapper.BizSurveyAdminMapper;
 import com.ruoyi.biz.mapper.BizSurveyAnswerItemMapper;
 import com.ruoyi.biz.mapper.BizSurveyAnswerMapper;
 import com.ruoyi.biz.mapper.BizSurveyDraftMapper;
 import com.ruoyi.biz.mapper.BizSurveyMapper;
 import com.ruoyi.biz.mapper.BizSurveyQuestionMapper;
 import com.ruoyi.biz.service.IBizNotifyService;
+import com.ruoyi.biz.service.IBizReachService;
+import com.ruoyi.biz.service.IBizRiskService;
 import com.ruoyi.biz.service.IBizSurveyService;
 import com.ruoyi.biz.service.IBizUserProjectService;
+import com.ruoyi.biz.service.IBizVersionService;
 import com.ruoyi.biz.utils.BizAccessLogHelper;
 import com.ruoyi.biz.utils.BizAccessPwdHelper;
 import com.ruoyi.biz.utils.BizProjectScopeHelper;
@@ -97,7 +102,15 @@ public class BizSurveyServiceImpl implements IBizSurveyService
     @Autowired
     private BizSurveyDraftMapper draftMapper;
     @Autowired
+    private BizSurveyAdminMapper surveyAdminMapper;
+    @Autowired
     private IBizNotifyService notifyService;
+    @Autowired
+    private IBizReachService reachService;
+    @Autowired
+    private IBizVersionService versionService;
+    @Autowired
+    private IBizRiskService riskService;
     @Autowired
     private BizProjectScopeHelper projectScopeHelper;
     @Autowired
@@ -107,6 +120,18 @@ public class BizSurveyServiceImpl implements IBizSurveyService
     @DataScope(deptAlias = "s", userAlias = "s", userField = "create_user_id", permission = "biz:survey:list")
     public List<BizSurvey> selectBizSurveyList(BizSurvey survey)
     {
+        if (survey.getParams() == null)
+        {
+            survey.setParams(new java.util.HashMap<>());
+        }
+        try
+        {
+            survey.getParams().put("loginUserId", SecurityUtils.getUserId());
+        }
+        catch (Exception ignored)
+        {
+            // anonymous / no login context
+        }
         List<BizSurvey> list = surveyMapper.selectBizSurveyList(survey);
         if (list != null)
         {
@@ -173,6 +198,15 @@ public class BizSurveyServiceImpl implements IBizSurveyService
         survey.setUpdateBy(SecurityUtils.getUsername());
         survey.setCreateUserId(null);
         survey.setCreateBy(null);
+        if (survey.getEndTime() != null
+            && (db.getEndTime() == null || !survey.getEndTime().equals(db.getEndTime())))
+        {
+            survey.setRemindSent("0");
+        }
+        if (survey.getStartTime() == null && survey.getParams() != null && survey.getParams().get("clearStartTime") != null)
+        {
+            // already via params
+        }
         return surveyMapper.updateBizSurvey(survey);
     }
 
@@ -183,11 +217,12 @@ public class BizSurveyServiceImpl implements IBizSurveyService
         for (Long id : surveyIds)
         {
             BizSurvey db = requireSurvey(id);
-            checkOwner(db);
+            assertSurveyOwner(db);
             answerItemMapper.deleteBySurveyId(id);
             answerMapper.deleteBySurveyId(id);
             draftMapper.deleteBySurveyId(id);
             questionMapper.deleteBySurveyId(id);
+            surveyAdminMapper.deleteBySurveyId(id);
         }
         return surveyMapper.deleteBizSurveyByIds(surveyIds);
     }
@@ -198,6 +233,7 @@ public class BizSurveyServiceImpl implements IBizSurveyService
     {
         BizSurvey survey = requireSurvey(surveyId);
         checkOwner(survey);
+        versionService.snapshotSurveyDesign(surveyId, "before-save");
         if (questions == null || questions.isEmpty())
         {
             throw new ServiceException("至少保留一道题目");
@@ -261,8 +297,51 @@ public class BizSurveyServiceImpl implements IBizSurveyService
         {
             throw new ServiceException("至少保留一道可作答题（说明段落与分页符不算）");
         }
-        questionMapper.deleteBySurveyId(surveyId);
-        return questionMapper.batchInsert(questions);
+
+        List<BizSurveyQuestion> existing = questionMapper.selectBySurveyId(surveyId);
+        java.util.Set<Long> existingIds = new java.util.HashSet<>();
+        for (BizSurveyQuestion eq : existing)
+        {
+            if (eq.getQuestionId() != null)
+            {
+                existingIds.add(eq.getQuestionId());
+            }
+        }
+        java.util.Set<Long> keepIds = new java.util.HashSet<>();
+        List<BizSurveyQuestion> toInsert = new ArrayList<>();
+        int updated = 0;
+        for (BizSurveyQuestion q : questions)
+        {
+            Long qid = q.getQuestionId();
+            if (qid != null && existingIds.contains(qid))
+            {
+                updated += questionMapper.updateQuestion(q);
+                keepIds.add(qid);
+            }
+            else
+            {
+                q.setQuestionId(null);
+                toInsert.add(q);
+            }
+        }
+        java.util.List<Long> toDelete = new ArrayList<>();
+        for (Long id : existingIds)
+        {
+            if (!keepIds.contains(id))
+            {
+                toDelete.add(id);
+            }
+        }
+        if (!toDelete.isEmpty())
+        {
+            questionMapper.deleteByIds(toDelete.toArray(new Long[0]));
+        }
+        int inserted = 0;
+        if (!toInsert.isEmpty())
+        {
+            inserted = questionMapper.batchInsert(toInsert);
+        }
+        return updated + inserted;
     }
 
     @Override
@@ -286,6 +365,7 @@ public class BizSurveyServiceImpl implements IBizSurveyService
         upd.setPublicCode(code);
         upd.setStatus("1");
         upd.setUpdateBy(SecurityUtils.getUsername());
+        upd.getParams().put("clearPublishAt", true);
         surveyMapper.updateBizSurvey(upd);
         return code;
     }
@@ -327,19 +407,69 @@ public class BizSurveyServiceImpl implements IBizSurveyService
         List<BizSurveyAnswerItem> items = answerItemMapper.selectByAnswerId(answerId);
         List<BizSurveyQuestion> questions = questionMapper.selectBySurveyId(survey.getSurveyId());
         Map<Long, BizSurveyQuestion> qMap = new HashMap<>();
+        List<BizSurveyQuestion> answerable = new ArrayList<>();
         for (BizSurveyQuestion q : questions)
         {
             qMap.put(q.getQuestionId(), q);
+            if (!isDisplayOnly(q.getQType()))
+            {
+                answerable.add(q);
+            }
+        }
+        // Heal legacy rows whose question_id was replaced by redesign (same count → map by order)
+        boolean needOrderFallback = false;
+        for (BizSurveyAnswerItem it : items)
+        {
+            if (StringUtils.isEmpty(it.getQuestionTitle()) || StringUtils.isEmpty(it.getQType()))
+            {
+                needOrderFallback = true;
+                break;
+            }
+        }
+        if (needOrderFallback && !items.isEmpty() && items.size() == answerable.size())
+        {
+            for (int i = 0; i < items.size(); i++)
+            {
+                BizSurveyAnswerItem it = items.get(i);
+                BizSurveyQuestion q = answerable.get(i);
+                if (StringUtils.isEmpty(it.getQuestionTitle()))
+                {
+                    it.setQuestionTitle(q.getTitle());
+                }
+                if (StringUtils.isEmpty(it.getQType()))
+                {
+                    it.setQType(q.getQType());
+                }
+            }
         }
         for (BizSurveyAnswerItem it : items)
         {
             BizSurveyQuestion q = qMap.get(it.getQuestionId());
+            if (q == null && StringUtils.isNotEmpty(it.getQType()))
+            {
+                q = new BizSurveyQuestion();
+                q.setQType(it.getQType());
+                q.setTitle(it.getQuestionTitle());
+                q.setOptionsJson(null);
+            }
             if (q != null)
             {
+                if (StringUtils.isEmpty(it.getQuestionTitle()))
+                {
+                    it.setQuestionTitle(q.getTitle());
+                }
+                if (StringUtils.isEmpty(it.getQType()))
+                {
+                    it.setQType(q.getQType());
+                }
                 it.setDisplayValue(formatExportValue(q, it.getAnswerValue()));
             }
             else
             {
+                if (StringUtils.isEmpty(it.getQuestionTitle()))
+                {
+                    it.setQuestionTitle("（题目已变更或已删除）");
+                }
                 it.setDisplayValue(it.getAnswerValue());
             }
         }
@@ -374,6 +504,54 @@ public class BizSurveyServiceImpl implements IBizSurveyService
             upd.setRemark(StringUtils.substring(answer.getRemark(), 0, 500));
         }
         return answerMapper.updateAnswerMeta(upd);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int batchUpdateAnswerMeta(Map<String, Object> body)
+    {
+        if (body == null)
+        {
+            throw new ServiceException("参数不能为空");
+        }
+        Object idsObj = body.get("answerIds");
+        if (!(idsObj instanceof List) || ((List<?>) idsObj).isEmpty())
+        {
+            throw new ServiceException("请选择答卷");
+        }
+        String validFlag = body.get("validFlag") == null ? null : String.valueOf(body.get("validFlag"));
+        String remark = body.get("remark") == null ? null : String.valueOf(body.get("remark"));
+        if (StringUtils.isEmpty(validFlag) && remark == null)
+        {
+            throw new ServiceException("请指定有效性或备注");
+        }
+        if (StringUtils.isNotEmpty(validFlag) && !"0".equals(validFlag) && !"1".equals(validFlag))
+        {
+            throw new ServiceException("validFlag 仅支持 0/1");
+        }
+        List<?> rawIds = (List<?>) idsObj;
+        if (rawIds.size() > 200)
+        {
+            throw new ServiceException("单次最多处理 200 条");
+        }
+        int n = 0;
+        for (Object raw : rawIds)
+        {
+            if (raw == null)
+            {
+                continue;
+            }
+            Long answerId = Long.valueOf(String.valueOf(raw));
+            BizSurveyAnswer upd = new BizSurveyAnswer();
+            upd.setAnswerId(answerId);
+            upd.setValidFlag(validFlag);
+            if (remark != null)
+            {
+                upd.setRemark(remark);
+            }
+            n += updateAnswerMeta(upd);
+        }
+        return n;
     }
 
     @Override
@@ -604,6 +782,11 @@ public class BizSurveyServiceImpl implements IBizSurveyService
         data.put("textQuestions", textStats);
         data.put("channels", answerMapper.selectChannelStats(surveyId));
         data.put("dailyTrends", answerMapper.selectDailyStats(surveyId));
+        data.put("riskByIp", riskService.decorateRiskRows(answerMapper.selectRiskByIp(surveyId)));
+        data.put("riskByDevice", riskService.decorateRiskRows(answerMapper.selectRiskByDevice(surveyId)));
+        data.put("funnel", riskService.buildFunnel("survey", surveyId));
+        data.put("channelCompare", riskService.buildChannelCompare(surveyId));
+        data.put("blacklist", riskService.listBlacklist("survey", surveyId));
         return data;
     }
 
@@ -963,7 +1146,7 @@ public class BizSurveyServiceImpl implements IBizSurveyService
     }
 
     @Override
-    public Map<String, Object> openMeta(String code, String accessPwd)
+    public Map<String, Object> openMeta(String code, String accessPwd, String channel)
     {
         BizSurvey survey = requireOpenable(code);
         Map<String, Object> data = new HashMap<>();
@@ -982,7 +1165,8 @@ public class BizSurveyServiceImpl implements IBizSurveyService
         List<BizSurveyQuestion> questions = questionMapper.selectBySurveyId(survey.getSurveyId());
 
         surveyMapper.increaseViewCount(survey.getSurveyId());
-        BizAccessLogHelper.log("survey", survey.getSurveyId(), survey.getPublicCode(), "view");
+        String ch = StringUtils.isEmpty(channel) ? null : StringUtils.substring(channel.trim(), 0, 64);
+        BizAccessLogHelper.log("survey", survey.getSurveyId(), survey.getPublicCode(), "view", null, ch);
 
         Map<String, Object> theme = new HashMap<>();
         if (StringUtils.isNotEmpty(survey.getThemeJson()))
@@ -1006,6 +1190,26 @@ public class BizSurveyServiceImpl implements IBizSurveyService
     }
 
     @Override
+    public void openEvent(String code, Map<String, Object> body)
+    {
+        BizSurvey survey = requireOpenable(code);
+        String accessPwd = body == null || body.get("accessPwd") == null ? null : String.valueOf(body.get("accessPwd"));
+        assertAccessPwd(survey.getAccessPwd(), accessPwd);
+        String action = body == null || body.get("action") == null ? "" : String.valueOf(body.get("action")).trim();
+        if (!"start".equals(action))
+        {
+            throw new ServiceException("unsupported event");
+        }
+        String channel = "";
+        if (body != null && body.get("channel") != null)
+        {
+            channel = StringUtils.substring(String.valueOf(body.get("channel")).trim(), 0, 64);
+        }
+        BizAccessLogHelper.log("survey", survey.getSurveyId(), survey.getPublicCode(), "start", null,
+            StringUtils.isEmpty(channel) ? null : channel);
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public Long openSubmit(String code, Map<String, Object> body, String ip, String ua)
     {
@@ -1024,9 +1228,21 @@ public class BizSurveyServiceImpl implements IBizSurveyService
         {
             throw new ServiceException("问卷已结束");
         }
-        BizAccessLogHelper.log("survey", survey.getSurveyId(), survey.getPublicCode(), "submit");
         String accessPwd = body == null || body.get("accessPwd") == null ? null : String.valueOf(body.get("accessPwd"));
         assertAccessPwd(survey.getAccessPwd(), accessPwd);
+        String clientToken = "";
+        if (body != null && body.get("clientToken") != null)
+        {
+            clientToken = StringUtils.substring(String.valueOf(body.get("clientToken")).trim(), 0, 64);
+        }
+        riskService.assertNotBlacklisted("survey", survey.getSurveyId(), ip, clientToken);
+        String channelEarly = "";
+        if (body != null && body.get("channel") != null)
+        {
+            channelEarly = StringUtils.substring(String.valueOf(body.get("channel")).trim(), 0, 64);
+        }
+        BizAccessLogHelper.log("survey", survey.getSurveyId(), survey.getPublicCode(), "submit", null,
+            StringUtils.isEmpty(channelEarly) ? null : channelEarly);
         if (survey.getMaxAnswers() != null && survey.getMaxAnswers() > 0)
         {
             long count = answerMapper.countBySurveyId(survey.getSurveyId());
@@ -1034,11 +1250,6 @@ public class BizSurveyServiceImpl implements IBizSurveyService
             {
                 throw new ServiceException("答卷已达上限");
             }
-        }
-        String clientToken = "";
-        if (body != null && body.get("clientToken") != null)
-        {
-            clientToken = StringUtils.substring(String.valueOf(body.get("clientToken")).trim(), 0, 64);
         }
         if ("0".equals(survey.getAllowMulti()))
         {
@@ -1198,6 +1409,8 @@ public class BizSurveyServiceImpl implements IBizSurveyService
             item.setAnswerId(answer.getAnswerId());
             item.setQuestionId(q.getQuestionId());
             item.setAnswerValue(v);
+            item.setQuestionTitle(StringUtils.substring(q.getTitle(), 0, 500));
+            item.setQType(q.getQType());
             items.add(item);
         }
         if (!items.isEmpty())
@@ -1209,6 +1422,13 @@ public class BizSurveyServiceImpl implements IBizSurveyService
         {
             notifyService.createAnswerNotify(survey.getCreateUserId(), survey.getSurveyId(),
                 answer.getAnswerId(), survey.getSurveyName(), answer.getChannelCode());
+        }
+        catch (Exception ignored)
+        {
+        }
+        try
+        {
+            reachService.sendAnswerMailIfNeeded(survey, answer.getAnswerId(), answer.getChannelCode());
         }
         catch (Exception ignored)
         {
@@ -2516,8 +2736,118 @@ public class BizSurveyServiceImpl implements IBizSurveyService
 
     private void checkOwner(BizSurvey survey)
     {
+        Long uid = null;
+        try
+        {
+            uid = SecurityUtils.getUserId();
+        }
+        catch (Exception ignored)
+        {
+        }
+        if (uid != null && survey.getSurveyId() != null
+            && surveyAdminMapper.countBySurveyAndUser(survey.getSurveyId(), uid) > 0)
+        {
+            return;
+        }
         projectScopeHelper.assertAccess(survey.getCreateUserId(), survey.getDeptId(),
             "biz:survey:list,biz:survey:query,biz:survey:edit", "无权操作该问卷");
+    }
+
+    /** Owner (create_user_id) or system admin only — not co-admins. */
+    private void assertSurveyOwner(BizSurvey survey)
+    {
+        if (SecurityUtils.isAdmin())
+        {
+            return;
+        }
+        Long uid = SecurityUtils.getUserId();
+        if (uid != null && uid.equals(survey.getCreateUserId()))
+        {
+            return;
+        }
+        throw new ServiceException("仅问卷归属人可执行此操作");
+    }
+
+    @Override
+    public List<BizSurveyAdmin> listSurveyAdmins(Long surveyId)
+    {
+        BizSurvey survey = requireSurvey(surveyId);
+        checkOwner(survey);
+        return surveyAdminMapper.selectBySurveyId(surveyId);
+    }
+
+    @Override
+    public List<Map<String, Object>> searchUsersForAdmin(String keyword)
+    {
+        return surveyAdminMapper.searchUsers(StringUtils.trim(keyword));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int addSurveyAdmin(Long surveyId, Long userId, String keyword)
+    {
+        BizSurvey survey = requireSurvey(surveyId);
+        assertSurveyOwner(survey);
+        Long targetId = userId;
+        if (targetId == null)
+        {
+            String kw = StringUtils.trim(keyword);
+            if (StringUtils.isEmpty(kw))
+            {
+                throw new ServiceException("请输入用户名或手机号");
+            }
+            Map<String, Object> found = surveyAdminMapper.findUserByNameOrPhone(kw);
+            if (found == null || found.isEmpty())
+            {
+                throw new ServiceException("未找到该用户名或手机号对应的用户");
+            }
+            targetId = Long.valueOf(String.valueOf(found.get("userId")));
+            Object status = found.get("status");
+            if (status != null && !"0".equals(String.valueOf(status)))
+            {
+                throw new ServiceException("目标用户已停用，无法添加");
+            }
+        }
+        else
+        {
+            Map<String, Object> user = userProjectService.requireActiveUser(targetId);
+            // requireActiveUser message says 转让 — ok enough
+            if (user == null)
+            {
+                throw new ServiceException("目标用户不存在");
+            }
+        }
+        if (targetId.equals(survey.getCreateUserId()))
+        {
+            throw new ServiceException("归属人已是问卷管理员，无需重复添加");
+        }
+        if (surveyAdminMapper.countBySurveyAndUser(surveyId, targetId) > 0)
+        {
+            throw new ServiceException("该用户已是管理员");
+        }
+        BizSurveyAdmin admin = new BizSurveyAdmin();
+        admin.setSurveyId(surveyId);
+        admin.setUserId(targetId);
+        admin.setCreateBy(SecurityUtils.getUsername());
+        return surveyAdminMapper.insert(admin);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int removeSurveyAdmin(Long surveyId, Long userId)
+    {
+        BizSurvey survey = requireSurvey(surveyId);
+        assertSurveyOwner(survey);
+        if (userId == null)
+        {
+            throw new ServiceException("请指定要移除的用户");
+        }
+        int n = surveyAdminMapper.deleteBySurveyAndUser(surveyId, userId);
+        if (n <= 0)
+        {
+            throw new ServiceException("该用户不是问卷管理员");
+        }
+        return n;
     }
 
     @Override
@@ -2534,6 +2864,8 @@ public class BizSurveyServiceImpl implements IBizSurveyService
         upd.setDeptId(deptId == null ? null : Long.valueOf(String.valueOf(deptId)));
         upd.setCreateBy(String.valueOf(user.get("userName")));
         upd.setUpdateBy(SecurityUtils.getUsername());
+        // new owner no longer needs co-admin row
+        surveyAdminMapper.deleteBySurveyAndUser(surveyId, targetUserId);
         return surveyMapper.transferOwner(upd);
     }
 
@@ -2554,7 +2886,15 @@ public class BizSurveyServiceImpl implements IBizSurveyService
             throw new ServiceException("无效链接");
         }
         BizSurvey survey = surveyMapper.selectBizSurveyByCode(code);
-        if (survey == null || !"1".equals(survey.getStatus()))
+        if (survey == null)
+        {
+            throw new ServiceException("问卷不存在或未发布");
+        }
+        if ("3".equals(survey.getStatus()))
+        {
+            throw new ServiceException("问卷已结束");
+        }
+        if (!"1".equals(survey.getStatus()))
         {
             throw new ServiceException("问卷不存在或未发布");
         }

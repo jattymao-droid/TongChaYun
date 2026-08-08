@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.biz.mapper.BizSurveyRevisionMapper">
+
+    <resultMap type="com.ruoyi.biz.domain.BizSurveyRevision" id="RevResult">
+        <id property="revId" column="rev_id"/>
+        <result property="surveyId" column="survey_id"/>
+        <result property="revNo" column="rev_no"/>
+        <result property="designJson" column="design_json"/>
+        <result property="themeJson" column="theme_json"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <select id="selectMaxRevNo" resultType="Integer">
+        select coalesce(max(rev_no), 0) from biz_survey_revision where survey_id = #{surveyId}
+    </select>
+
+    <insert id="insert" parameterType="com.ruoyi.biz.domain.BizSurveyRevision" useGeneratedKeys="true" keyProperty="revId">
+        insert into biz_survey_revision (survey_id, rev_no, design_json, theme_json, create_by, create_time, remark)
+        values (#{surveyId}, #{revNo}, #{designJson}, #{themeJson}, #{createBy}, now(), #{remark})
+    </insert>
+
+    <select id="selectBySurveyId" resultMap="RevResult">
+        select rev_id, survey_id, rev_no, design_json, theme_json, create_by, create_time, remark
+        from biz_survey_revision
+        where survey_id = #{surveyId}
+        order by rev_no desc
+        limit 20
+    </select>
+
+    <select id="selectById" resultMap="RevResult">
+        select rev_id, survey_id, rev_no, design_json, theme_json, create_by, create_time, remark
+        from biz_survey_revision where rev_id = #{revId}
+    </select>
+
+    <select id="selectOldRevIds" resultType="Long">
+        select rev_id from biz_survey_revision
+        where survey_id = #{surveyId}
+        order by rev_no desc
+        offset #{keep}
+    </select>
+
+    <delete id="deleteByIds">
+        delete from biz_survey_revision where rev_id in
+        <foreach collection="revIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+</mapper>

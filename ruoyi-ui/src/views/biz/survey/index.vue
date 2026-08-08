@@ -48,14 +48,15 @@
       <div
         v-for="row in surveyList"
         :key="row.surveyId"
-        class="survey-card biz-list-card kind-survey"
+        class="survey-card biz-list-card kind-survey is-clickable"
         :class="['status-' + (row.status || '0'), { selected: isSelected(row) }]"
+        @click="goStats(row)"
       >
         <div class="card-body">
           <div class="card-top">
-            <el-checkbox class="card-check" :value="isSelected(row)" @change="val => toggleSelect(row, val)" />
+            <el-checkbox class="card-check" :value="isSelected(row)" @change="val => toggleSelect(row, val)" @click.native.stop />
             <div class="card-mark"><i class="el-icon-document"></i></div>
-            <div class="card-title-wrap" @click="goSetup(row)">
+            <div class="card-title-wrap" @click.stop="goStats(row)">
               <div class="card-title-row">
                 <h3 class="card-title" :title="row.surveyName">
                   {{ row.surveyName || '未命名问卷' }}
@@ -63,7 +64,7 @@
                 </h3>
                 <dict-tag :options="dict.type.biz_survey_status" :value="row.status" />
               </div>
-              <p class="card-desc" :title="row.surveyDesc">{{ row.surveyDesc || '暂无描述，点击进入设置或设计题目。' }}</p>
+              <p class="card-desc" :title="row.surveyDesc">{{ row.surveyDesc || '暂无描述，点击卡片查看统计。' }}</p>
             </div>
           </div>
 
@@ -86,7 +87,7 @@
             </div>
           </div>
 
-          <div class="card-foot">
+          <div class="card-foot" @click.stop>
             <div class="foot-left">
               <span class="hint" v-if="canManageUsers" :title="ownerTitle(row)">{{ ownerLabel(row) }} · 设计题目 / 设置规则</span>
               <span class="hint" v-else>常用：设计题目 / 设置规则</span>
@@ -105,6 +106,7 @@
                   <el-dropdown-item v-if="row.status === '1'" command="offline" icon="el-icon-video-pause" v-hasPermi="['biz:survey:publish']">停用</el-dropdown-item>
                   <el-dropdown-item v-if="row.publicCode" command="link" icon="el-icon-link">链接</el-dropdown-item>
                   <el-dropdown-item command="edit" icon="el-icon-edit-outline" v-hasPermi="['biz:survey:edit']">编辑资料</el-dropdown-item>
+                  <el-dropdown-item command="admins" icon="el-icon-user" v-hasPermi="['biz:survey:edit']">添加管理员</el-dropdown-item>
                   <el-dropdown-item command="transfer" icon="el-icon-sort" v-hasPermi="['biz:user:transfer']">转让归属</el-dropdown-item>
                   <el-dropdown-item command="delete" icon="el-icon-delete" divided v-hasPermi="['biz:survey:remove']">删除</el-dropdown-item>
                 </el-dropdown-menu>
@@ -144,6 +146,19 @@
         <el-form-item label="截止时间">
           <el-date-picker v-model="form.endTime" type="datetime" value-format="yyyy-MM-dd HH:mm:ss" placeholder="可选" style="width:100%" />
         </el-form-item>
+        <el-form-item label="截止提醒">
+          <el-input-number v-model="form.remindHours" :min="0" :max="168" />
+          <span class="tip">小时；0 不提醒</span>
+        </el-form-item>
+        <el-form-item label="提醒邮件" v-if="form.remindHours > 0">
+          <el-switch v-model="form.remindMail" active-value="1" inactive-value="0" />
+        </el-form-item>
+        <el-form-item label="答卷邮件">
+          <el-switch v-model="form.mailNotify" active-value="1" inactive-value="0" />
+        </el-form-item>
+        <el-form-item label="通知邮箱" v-if="form.mailNotify === '1'">
+          <el-input v-model="form.mailNotifyTo" placeholder="逗号分隔；留空用负责人邮箱" clearable />
+        </el-form-item>
         <el-form-item label="允许多次">
           <el-switch v-model="form.allowMulti" active-value="1" inactive-value="0" />
         </el-form-item>
@@ -167,7 +182,7 @@
         </el-form-item>
         <el-form-item label="Webhook">
           <el-input v-model="form.webhookUrl" placeholder="答卷提交后 POST JSON，如 https://example.com/hook" clearable />
-          <div class="tip">可选。提交成功后异步回调，不阻塞填写。</div>
+          <div class="tip">可选。提交成功后异步回调，不阻塞填写。企微群机器人：粘贴机器人 Webhook 地址，点「发送测试」验证。</div>
           <el-button v-if="form.surveyId && form.webhookUrl" type="text" size="mini" @click="handleTestWebhook">发送测试</el-button>
         </el-form-item>
         <el-form-item label="签名密钥">
@@ -255,11 +270,59 @@
         <el-button @click="transferOpen = false">取 消</el-button>
       </div>
     </el-dialog>
+
+    <el-dialog
+      :title="'添加管理员 - ' + ((adminRow && adminRow.surveyName) || '')"
+      :visible.sync="adminOpen"
+      width="560px"
+      append-to-body
+    >
+      <p class="transfer-tip">通过用户名或手机号添加协作管理员，对方可设计、查看答卷与统计；删除问卷与管理管理员仅归属人可操作。</p>
+      <div class="admin-add-row">
+        <el-select
+          v-model="adminUserId"
+          filterable
+          remote
+          clearable
+          placeholder="搜索用户名 / 昵称 / 手机号"
+          :remote-method="searchAdminUsers"
+          :loading="adminUserLoading"
+          style="flex:1"
+        >
+          <el-option
+            v-for="u in adminUsers"
+            :key="u.userId"
+            :label="adminUserLabel(u)"
+            :value="u.userId"
+          />
+        </el-select>
+        <el-button type="primary" :loading="adminAdding" :disabled="!adminUserId" @click="submitAddAdmin">添加</el-button>
+      </div>
+      <div class="admin-or">或直接输入完整用户名 / 手机号</div>
+      <div class="admin-add-row">
+        <el-input v-model="adminKeyword" clearable placeholder="精确用户名或手机号" @keyup.enter.native="submitAddAdminByKeyword" />
+        <el-button :loading="adminAdding" :disabled="!(adminKeyword && adminKeyword.trim())" @click="submitAddAdminByKeyword">添加</el-button>
+      </div>
+      <el-table :data="adminList" size="small" class="mt12" v-loading="adminListLoading">
+        <el-table-column label="用户名" prop="userName" min-width="100" />
+        <el-table-column label="昵称" prop="nickName" min-width="100" />
+        <el-table-column label="手机号" prop="phonenumber" min-width="120" />
+        <el-table-column label="操作" width="80" align="center">
+          <template slot-scope="scope">
+            <el-button type="text" size="mini" style="color:#f56c6c" @click="removeAdmin(scope.row)">移除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-empty v-if="!adminListLoading && !adminList.length" description="暂无协作管理员" :image-size="56" />
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="adminOpen = false">关 闭</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import { listSurvey, getSurvey, addSurvey, updateSurvey, delSurvey, publishSurvey, offlineSurvey, copySurvey, testSurveyWebhook, listSurveyTemplates, createSurveyFromTemplate, transferSurvey } from '@/api/biz/survey'
+import { listSurvey, getSurvey, addSurvey, updateSurvey, delSurvey, publishSurvey, offlineSurvey, copySurvey, testSurveyWebhook, listSurveyTemplates, createSurveyFromTemplate, transferSurvey, listSurveyAdmins, searchSurveyAdminUsers, addSurveyAdmin, removeSurveyAdmin } from '@/api/biz/survey'
 import { listUser } from '@/api/system/user'
 import { toQrDataUrl, buildSharePoster, downloadDataUrl, resolvePosterBg } from '@/utils/qrcode'
 import PosterBgForm from '@/components/PosterBgForm'
@@ -314,6 +377,15 @@ export default {
       transferUserId: null,
       transferUsers: [],
       transferUserLoading: false,
+      adminOpen: false,
+      adminRow: null,
+      adminList: [],
+      adminListLoading: false,
+      adminUserId: null,
+      adminUsers: [],
+      adminUserLoading: false,
+      adminKeyword: '',
+      adminAdding: false,
       themePresets: [
         { name: '蓝', color: '#1677ff', bg: 'linear-gradient(180deg, #f5f8ff 0%, #f7f7f7 280px, #f7f7f7 100%)' },
         { name: '绿', color: '#0f766e', bg: 'linear-gradient(180deg, #ecfdf5 0%, #f7f7f7 280px, #f7f7f7 100%)' },
@@ -433,6 +505,7 @@ export default {
         offline: this.handleOffline,
         link: this.handleQr,
         edit: this.handleUpdate,
+        admins: this.openAdmins,
         transfer: this.openTransfer,
         delete: this.handleDelete
       }
@@ -462,6 +535,61 @@ export default {
         this.getList()
       }).finally(() => { this.transferring = false })
     },
+    openAdmins(row) {
+      this.adminRow = row
+      this.adminUserId = null
+      this.adminUsers = []
+      this.adminKeyword = ''
+      this.adminOpen = true
+      this.loadAdminList()
+      this.searchAdminUsers('')
+    },
+    adminUserLabel(u) {
+      const name = u.nickName || u.userName || ''
+      const phone = u.phonenumber ? ' · ' + u.phonenumber : ''
+      return name + ' (' + u.userName + ')' + phone
+    },
+    searchAdminUsers(keyword) {
+      this.adminUserLoading = true
+      searchSurveyAdminUsers(keyword || '').then(res => {
+        this.adminUsers = res.data || []
+      }).finally(() => { this.adminUserLoading = false })
+    },
+    loadAdminList() {
+      if (!this.adminRow) return
+      this.adminListLoading = true
+      listSurveyAdmins(this.adminRow.surveyId).then(res => {
+        this.adminList = res.data || []
+      }).finally(() => { this.adminListLoading = false })
+    },
+    submitAddAdmin() {
+      if (!this.adminRow || !this.adminUserId) return
+      this.adminAdding = true
+      addSurveyAdmin(this.adminRow.surveyId, { userId: this.adminUserId }).then(() => {
+        this.$modal.msgSuccess('已添加管理员')
+        this.adminUserId = null
+        this.loadAdminList()
+      }).finally(() => { this.adminAdding = false })
+    },
+    submitAddAdminByKeyword() {
+      const kw = (this.adminKeyword || '').trim()
+      if (!this.adminRow || !kw) return
+      this.adminAdding = true
+      addSurveyAdmin(this.adminRow.surveyId, { keyword: kw }).then(() => {
+        this.$modal.msgSuccess('已添加管理员')
+        this.adminKeyword = ''
+        this.loadAdminList()
+      }).finally(() => { this.adminAdding = false })
+    },
+    removeAdmin(row) {
+      if (!this.adminRow || !row || !row.userId) return
+      this.$modal.confirm('确认移除管理员「' + (row.nickName || row.userName) + '」？').then(() => {
+        return removeSurveyAdmin(this.adminRow.surveyId, row.userId)
+      }).then(() => {
+        this.$modal.msgSuccess('已移除')
+        this.loadAdminList()
+      }).catch(() => {})
+    },
     reset() {
       this.form = {
         surveyId: undefined,
@@ -470,6 +598,10 @@ export default {
         accessPwd: undefined,
         startTime: undefined,
         endTime: undefined,
+        remindHours: 24,
+        remindMail: '0',
+        mailNotify: '0',
+        mailNotifyTo: '',
         allowMulti: '1',
         maxAnswers: 0,
         dailyLimit: 0,
@@ -498,10 +630,10 @@ export default {
       const themes = {
         satisfaction: { accent: '#1677ff', cover: 'linear-gradient(135deg, #dbeafe 0%, #eff6ff 45%, #ffffff 100%)' },
         registration: { accent: '#0f766e', cover: 'linear-gradient(135deg, #ccfbf1 0%, #ecfdf5 45%, #ffffff 100%)' },
-        enrollment: { accent: '#2b6de5', cover: 'linear-gradient(135deg, #dbe4ff 0%, #eef2ff 45%, #ffffff 100%)' },
+        enrollment: { accent: '#1d4ed8', cover: 'linear-gradient(135deg, #dbe4ff 0%, #eef2ff 45%, #ffffff 100%)' },
         feedback: { accent: '#c2410c', cover: 'linear-gradient(135deg, #ffedd5 0%, #fff7ed 45%, #ffffff 100%)' }
       }
-      const t = themes[(tpl && tpl.key) || ''] || { accent: '#2b6de5', cover: 'linear-gradient(135deg, #e8f0fe 0%, #ffffff 72%)' }
+      const t = themes[(tpl && tpl.key) || ''] || { accent: '#1d4ed8', cover: 'linear-gradient(135deg, #eff6ff 0%, #ffffff 72%)' }
       return { '--tpl-accent': t.accent, '--tpl-cover': t.cover }
     },
     applyTemplate(tpl) {
@@ -553,6 +685,10 @@ export default {
         accessPwd: row.accessPwd,
         startTime: row.startTime,
         endTime: row.endTime,
+        remindHours: row.remindHours == null ? 24 : row.remindHours,
+        remindMail: row.remindMail || '0',
+        mailNotify: row.mailNotify || '0',
+        mailNotifyTo: row.mailNotifyTo || '',
         allowMulti: row.allowMulti || '1',
         maxAnswers: row.maxAnswers == null ? 0 : row.maxAnswers,
         dailyLimit: row.dailyLimit == null ? 0 : row.dailyLimit,
@@ -617,7 +753,7 @@ export default {
       }).catch(() => {})
     },
     goSetup(row) {
-      this.$router.push('/biz/survey-setup/index/' + row.surveyId)
+      this.$router.push({ path: '/biz/survey-setup/index/' + row.surveyId, query: { step: '0' } })
     },
     goDesign(row) {
       this.$router.push('/biz/survey-design/index/' + row.surveyId)
@@ -646,7 +782,13 @@ export default {
       this.$modal.confirm('确认发布问卷「' + row.surveyName + '」？').then(() => {
         return publishSurvey(row.surveyId)
       }).then(res => {
-        const code = (res.data && res.data.publicCode) || row.publicCode
+        const data = res.data || {}
+        if (data.pending) {
+          this.$modal.msgSuccess(data.message || '已提交发布审批')
+          this.getList()
+          return
+        }
+        const code = data.publicCode || row.publicCode
         this.$modal.msgSuccess('发布成功')
         this.getList()
         if (code) this.openPosterShare({ ...row, publicCode: code })
@@ -795,4 +937,16 @@ export default {
   font-size: 13px;
   line-height: 1.6;
 }
+.admin-add-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.admin-or {
+  margin: 4px 0 10px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+.mt12 { margin-top: 12px; }
 </style>

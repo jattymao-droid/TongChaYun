@@ -5,7 +5,8 @@ import QueryResultPage from '@/views/QueryResult.vue'
 import SurveyPage from '@/views/Survey.vue'
 
 const router = createRouter({
-  history: createWebHistory(),
+  // Must match Vite base (e.g. /h5/ in production)
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/', name: 'home', component: Home },
     { path: '/q/:code', name: 'query', component: QueryPage },

@@ -1,6 +1,7 @@
 package com.ruoyi.biz.domain;
 
 import java.io.Serializable;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Survey answer item
@@ -29,8 +30,13 @@ public class BizSurveyAnswerItem implements Serializable
     public void setAnswerValue(String answerValue) { this.answerValue = answerValue; }
     public String getQuestionTitle() { return questionTitle; }
     public void setQuestionTitle(String questionTitle) { this.questionTitle = questionTitle; }
+
+    @JsonProperty("qType")
     public String getQType() { return qType; }
+
+    @JsonProperty("qType")
     public void setQType(String qType) { this.qType = qType; }
+
     public String getDisplayValue() { return displayValue; }
     public void setDisplayValue(String displayValue) { this.displayValue = displayValue; }
 }

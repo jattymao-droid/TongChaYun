@@ -1,0 +1,56 @@
+/* Login dialog captcha: table layout keeps input + image on one row */
+.js-login-dialog .js-code-table,
+.js-login-card.in-dialog .js-code-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.js-login-dialog .js-code-td-input,
+.js-login-card.in-dialog .js-code-td-input {
+  width: auto;
+  padding: 0 10px 0 0;
+  vertical-align: middle;
+}
+
+.js-login-dialog .js-code-td-img,
+.js-login-card.in-dialog .js-code-td-img {
+  width: 120px;
+  padding: 0;
+  vertical-align: middle;
+}
+
+.js-login-dialog .js-code-table .login-code,
+.js-login-card.in-dialog .js-code-table .login-code {
+  box-sizing: border-box;
+  width: 120px;
+  height: 50px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.js-login-dialog .js-code-table .login-code:hover,
+.js-login-card.in-dialog .js-code-table .login-code:hover {
+  border-color: #1d4ed8;
+}
+
+.js-login-dialog .js-code-table .login-code-img,
+.js-login-card.in-dialog .js-code-table .login-code-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.js-login-dialog .login-code-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 12px;
+  color: #94a3b8;
+}

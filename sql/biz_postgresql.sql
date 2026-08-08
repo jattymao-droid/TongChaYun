@@ -142,6 +142,8 @@ create table biz_survey_answer_item (
   answer_id int8 not null,
   question_id int8 not null,
   answer_value text,
+  question_title varchar(500),
+  q_type varchar(32),
   primary key (item_id)
 );
 create index idx_biz_survey_answer_item_aid on biz_survey_answer_item(answer_id);
@@ -169,7 +171,7 @@ delete from sys_role_menu where menu_id between 2000 and 2099;
 delete from sys_menu where menu_id between 2000 and 2099;
 
 insert into sys_menu values(2000, '业务中心', '0', '5', 'biz', null, '', '', 1, 0, 'M', '0', '0', '', 'component', 'admin', now(), '', null, '业务中心目录');
-insert into sys_menu values(2003, '业务看板', '2000', '0', 'dashboard', 'biz/dashboard/index', '', '', 1, 0, 'C', '0', '0', 'biz:dashboard:list', 'chart', 'admin', now(), '', null, '业务看板');
+insert into sys_menu values(2003, '仪表盘', '2000', '0', 'dashboard', 'biz/dashboard/index', '', '', 1, 0, 'C', '0', '0', 'biz:dashboard:list', 'dashboard', 'admin', now(), '', null, '仪表盘');
 insert into sys_menu values(2001, '查询管理', '2000', '1', 'query', 'biz/query/index', '', '', 1, 0, 'C', '0', '0', 'biz:query:list', 'search', 'admin', now(), '', null, '查询管理菜单');
 insert into sys_menu values(2002, '问卷管理', '2000', '2', 'survey', 'biz/survey/index', '', '', 1, 0, 'C', '0', '0', 'biz:survey:list', 'form', 'admin', now(), '', null, '问卷管理菜单');
 

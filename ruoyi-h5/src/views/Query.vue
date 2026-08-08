@@ -110,10 +110,27 @@
             </div>
           </div>
 
-          <div v-if="needCaptcha" class="captcha-row">
-            <input v-model="captchaCode" type="text" maxlength="6" placeholder="验证码" @keyup.enter="goResult" />
-            <img v-if="captchaUrl" :src="captchaUrl" class="captcha-img" alt="captcha" @click="refreshCaptcha" />
-            <button type="button" class="btn ghost" @click="refreshCaptcha">刷新</button>
+          <div v-if="needCaptcha" class="captcha-field">
+            <div class="captcha-head">
+              <label>验证码 <span class="req">*</span></label>
+              <button type="button" class="captcha-refresh-btn" @click="refreshCaptcha">↻ 换一张</button>
+            </div>
+            <div class="captcha-row">
+              <input
+                v-model="captchaCode"
+                class="captcha-input"
+                type="text"
+                maxlength="6"
+                inputmode="numeric"
+                placeholder="请输入计算结果"
+                @keyup.enter="goResult"
+              />
+              <button type="button" class="captcha-media" title="点击刷新" @click="refreshCaptcha">
+                <img v-if="captchaUrl" :src="captchaUrl" alt="验证码" draggable="false" />
+                <span v-else class="captcha-loading">加载中</span>
+              </button>
+            </div>
+            <p class="captcha-hint">看不清可点击图片或「换一张」刷新</p>
           </div>
           <div class="actions-bar" :class="[{ 'anim-fade-up anim-delay-2': layout.formAnim }, { block: layout.formBtnBlock }, { shake: actionsShake }]">
             <button class="btn anim-btn" @click="reset">重置</button>
@@ -344,7 +361,7 @@ onMounted(() => {
 <style scoped>
 .form-shell {
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -497,11 +514,15 @@ onMounted(() => {
   .fields.cols-3 { grid-template-columns: 1fr; }
   .panel-head.row { flex-direction: column; }
   .fill-hint { align-self: flex-start; }
+  .range { grid-template-columns: 1fr; }
+  .range > span { text-align: center; color: #94a3b8; font-size: 12px; }
   .actions-bar {
-    position: sticky; bottom: 8px; z-index: 2;
+    position: sticky;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    z-index: 2;
     margin-top: 12px; padding: 10px;
     border: 1px solid #eef2f7; border-radius: 12px;
-    background: rgba(255,255,255,.94); backdrop-filter: blur(8px);
+    background: rgba(255,255,255,.96); backdrop-filter: blur(8px);
   }
   .primary-btn { flex: 1; }
 }
@@ -529,12 +550,76 @@ select.multi { min-height: 88px; }
   80% { transform: translateX(4px); }
 }
 
-.captcha-row {
-  display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; flex-wrap: wrap;
+.captcha-field {
+  margin: 4px 0 14px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--theme, #1677ff) 18%, #e5e7eb);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--theme, #1677ff) 6%, #fff) 0%, #fff 100%);
 }
-.captcha-row input { width: 120px; flex: 0 0 auto; }
-.captcha-img {
-  height: 38px; border-radius: 8px; cursor: pointer; border: 1px solid var(--border, #e5e7eb);
+.captcha-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.captcha-head > label {
+  margin: 0;
+  font-weight: 650;
+  font-size: 14px;
+}
+.captcha-refresh-btn {
+  border: 0;
+  background: transparent;
+  color: var(--theme, #1677ff);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 2px;
+}
+.captcha-row {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+.captcha-media {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 132px;
+  height: 48px;
+  padding: 4px 8px;
+  border: 1px dashed color-mix(in srgb, var(--theme, #1677ff) 28%, #e5e7eb);
+  border-radius: 12px;
+  background: repeating-linear-gradient(-12deg, #f8fafc, #f8fafc 8px, #f1f5f9 8px, #f1f5f9 16px);
+  cursor: pointer;
+  overflow: hidden;
+}
+.captcha-media img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 4px;
+}
+.captcha-loading { font-size: 12px; color: #94a3b8; }
+.captcha-input {
+  flex: 1;
+  min-width: 0;
+  height: 48px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  padding: 0 14px;
+  font-size: 16px;
+  letter-spacing: 0.06em;
+}
+.captcha-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #94a3b8;
 }
 .btn.ghost { background: transparent; border: 1px solid rgba(15,23,42,.1); }
 </style>

@@ -1,11 +1,12 @@
 <template>
-  <div class="page" :style="pageStyle">
-    <div class="hero">
-      <h1>{{ surveyName || '问卷填写' }}</h1>
-      <p v-if="surveyDesc">{{ surveyDesc }}</p>
+  <div class="page survey-fill" :style="pageStyle">
+    <div class="hero" :style="heroStyle" v-if="showHero">
+      <h1 v-if="showTitle" :style="titleStyle">{{ surveyName || '问卷填写' }}</h1>
+      <p v-if="showDesc && surveyDesc">{{ surveyDesc }}</p>
     </div>
 
-    <div class="card" v-if="needPwd && !unlocked">
+    <div class="card card-pwd" v-if="needPwd && !unlocked">
+      <div class="panel-tag">访问验证</div>
       <div class="field">
         <label>访问密码</label>
         <input v-model="accessPwd" type="password" placeholder="请输入访问密码" @keyup.enter="loadMeta" />
@@ -16,16 +17,31 @@
       <p class="msg" v-if="error">{{ error }}</p>
     </div>
 
-    <div class="card" v-else-if="submitted">
+    <div class="card card-success" v-else-if="submitted">
       <div class="success">
-        <h2>提交成功</h2>
-        <p class="tip">感谢您的参与</p>
-        <button v-if="allowAgain" class="btn primary" @click="again">再填一份</button>
+        <div class="success-mark no-print" aria-hidden="true">✓</div>
+        <h2>{{ successTitle }}</h2>
+        <p class="tip">{{ successMsg }}</p>
+        <div v-if="voucherNo" class="voucher-slip">
+          <div class="voucher-label">报名凭证</div>
+          <div class="voucher-name">{{ surveyName || '问卷' }}</div>
+          <div class="voucher-no">{{ voucherNo }}</div>
+          <p class="voucher-hint">请妥善保存凭证号，必要时可打印本页</p>
+        </div>
+        <p v-if="redirectHint" class="tip redirect-hint no-print">{{ redirectHint }}</p>
+        <div class="success-actions no-print">
+          <button v-if="voucherNo" class="btn ghost" @click="printVoucher">打印凭证</button>
+          <button v-if="showAgainBtn" class="btn primary" @click="again">再填一份</button>
+          <a v-if="successRedirectUrl" class="btn ghost" :href="successRedirectUrl">立即前往</a>
+        </div>
       </div>
     </div>
 
-    <div class="card" v-else>
-      <p class="empty" v-if="metaLoading">加载中…</p>
+    <div class="card card-fill" v-else>
+      <div class="loading-box" v-if="metaLoading">
+        <span class="loading-dot" /><span class="loading-dot" /><span class="loading-dot" />
+        <p>加载中…</p>
+      </div>
       <template v-else-if="fillMode === 'pages' ? pages.length && pages[0].questions.length : stepQuestionList.length">
         <div v-if="fillMode === 'step' || fillMode === 'pages'" class="step-progress">
           <div class="step-track"><i :style="{ width: stepProgress + '%' }" /></div>
@@ -35,16 +51,19 @@
         <div v-if="fillMode === 'pages' && currentPageTitle" class="page-title">{{ currentPageTitle }}</div>
         <Transition :name="(fillMode === 'step' || fillMode === 'pages') ? stepAnim : ''" mode="out-in">
           <div class="step-stage" :key="stepStageKey">
-            <div class="field step-field" v-for="q in displayQuestions" :key="q.questionId">
+            <div class="field step-field" v-for="(q, qi) in displayQuestions" :key="q.questionId" :style="{ animationDelay: (qi * 0.04) + 's' }">
           <div v-if="q.qType === 'section'" class="section-box">
             <h3>{{ q.title }}</h3>
             <p>{{ q._content || '' }}</p>
           </div>
           <div v-else-if="q.qType === 'agreement'" class="agreement-box">
-            <label>
-              {{ questionNo(q) }}. {{ q.title }}
-              <span class="req" v-if="q.required === '1'">*</span>
-            </label>
+            <div class="q-head">
+              <span class="q-no">{{ questionNo(q) }}</span>
+              <label class="q-title">
+                {{ q.title }}
+                <span class="req" v-if="q.required === '1'">*</span>
+              </label>
+            </div>
             <div class="agree-body" v-html="q._content || ''" />
             <label class="opt agree-check" :class="{ on: form[q.questionId] === '1' }">
               <input type="checkbox" :checked="form[q.questionId] === '1'" @change="onAgree(q, $event)" />
@@ -72,10 +91,13 @@
             </div>
           </div>
           <div v-else-if="q.qType === 'signature'" class="signature-box">
-            <label>
-              {{ questionNo(q) }}. {{ q.title }}
-              <span class="req" v-if="q.required === '1'">*</span>
-            </label>
+            <div class="q-head">
+              <span class="q-no">{{ questionNo(q) }}</span>
+              <label class="q-title">
+                {{ q.title }}
+                <span class="req" v-if="q.required === '1'">*</span>
+              </label>
+            </div>
             <SurveySignaturePad
               v-model="form[q.questionId]"
               :pen-color="q._penColor || '#111111'"
@@ -88,21 +110,26 @@
             />
           </div>
           <template v-else>
-            <label>
-              {{ questionNo(q) }}. {{ q.title }}
-              <span class="req" v-if="q.required === '1'">*</span>
-            </label>
+            <div class="q-head">
+              <span class="q-no">{{ questionNo(q) }}</span>
+              <label class="q-title">
+                {{ q.title }}
+                <span class="req" v-if="q.required === '1'">*</span>
+              </label>
+            </div>
 
             <template v-if="q.qType === 'radio' || q.qType === 'yesno'">
-              <label
-                class="opt"
-                v-for="opt in q._options"
-                :key="opt.value"
-                :class="{ on: form[q.questionId] === opt.value }"
-              >
-                <input type="radio" :name="'q'+q.questionId" :value="opt.value" v-model="form[q.questionId]" @change="onSinglePick(q)" />
-                {{ opt.label }}
-              </label>
+              <div class="opt-list">
+                <label
+                  class="opt"
+                  v-for="opt in q._options"
+                  :key="opt.value"
+                  :class="{ on: form[q.questionId] === opt.value }"
+                >
+                  <input type="radio" :name="'q'+q.questionId" :value="opt.value" v-model="form[q.questionId]" @change="onSinglePick(q)" />
+                  {{ opt.label }}
+                </label>
+              </div>
             </template>
 
             <div v-else-if="q.qType === 'likert'" class="likert-box">
@@ -152,15 +179,18 @@
                 </thead>
                 <tbody>
                   <tr v-for="row in (q._rows || [])" :key="row.value || row.label">
-                    <td>{{ row.label }}</td>
+                    <td class="matrix-row-label">{{ row.label }}</td>
                     <td v-for="opt in q._options" :key="opt.value">
-                      <input
-                        type="radio"
-                        :name="'m'+q.questionId+'-'+(row.value||row.label)"
-                        :value="opt.value"
-                        :checked="form[q.questionId] && form[q.questionId][row.value||row.label] === opt.value"
-                        @change="setMatrix(q, row, opt.value)"
-                      />
+                      <label class="matrix-cell" :class="{ on: form[q.questionId] && form[q.questionId][row.value||row.label] === opt.value }">
+                        <input
+                          type="radio"
+                          :name="'m'+q.questionId+'-'+(row.value||row.label)"
+                          :value="opt.value"
+                          :checked="form[q.questionId] && form[q.questionId][row.value||row.label] === opt.value"
+                          @change="setMatrix(q, row, opt.value)"
+                        />
+                        <span class="matrix-dot" aria-hidden="true" />
+                      </label>
                     </td>
                   </tr>
                 </tbody>
@@ -168,54 +198,102 @@
             </div>
 
             <template v-else-if="q.qType === 'checkbox'">
-              <label
-                class="opt"
-                v-for="opt in q._options"
-                :key="opt.value"
-                :class="{ on: Array.isArray(form[q.questionId]) && form[q.questionId].includes(opt.value) }"
-              >
-                <input type="checkbox" :value="opt.value" v-model="form[q.questionId]" @change="onChange" />
-                {{ opt.label }}
-              </label>
+              <div class="opt-list">
+                <label
+                  class="opt"
+                  v-for="opt in q._options"
+                  :key="opt.value"
+                  :class="{ on: Array.isArray(form[q.questionId]) && form[q.questionId].includes(opt.value) }"
+                >
+                  <input type="checkbox" :value="opt.value" v-model="form[q.questionId]" @change="onChange" />
+                  {{ opt.label }}
+                </label>
+              </div>
             </template>
 
-            <select v-else-if="q.qType === 'select'" v-model="form[q.questionId]" @change="onSinglePick(q)">
+            <select v-else-if="q.qType === 'select'" class="ctrl" v-model="form[q.questionId]" @change="onSinglePick(q)">
               <option value="">请选择</option>
               <option v-for="opt in q._options" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
             </select>
 
             <div v-else-if="q.qType === 'cascade_select'" class="cascade-wrap">
-              <select :value="cascadeLevel(q, 0)" @change="onCascadeChange(q, 0, $event.target.value)">
+              <select class="ctrl" :value="cascadeLevel(q, 0)" @change="onCascadeChange(q, 0, $event.target.value)">
                 <option value="">请选择</option>
                 <option v-for="opt in (q._options || [])" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
               </select>
-              <select v-if="cascadeChildren(q).length" :value="cascadeLevel(q, 1)" @change="onCascadeChange(q, 1, $event.target.value)">
+              <select class="ctrl" v-if="cascadeChildren(q).length" :value="cascadeLevel(q, 1)" @change="onCascadeChange(q, 1, $event.target.value)">
                 <option value="">请选择</option>
                 <option v-for="opt in cascadeChildren(q)" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
               </select>
             </div>
 
-            <input v-else-if="q.qType === 'rate'" type="number" min="1" :max="q._max || 5" v-model.number="form[q.questionId]" @change="onChange" />
+            <div v-else-if="q.qType === 'rate'" class="rate-box">
+              <button
+                type="button"
+                v-for="n in (q._max || 5)"
+                :key="n"
+                class="rate-star"
+                :class="{ on: Number(form[q.questionId]) >= n }"
+                @click="form[q.questionId]=n; onChange()"
+              >★</button>
+              <span class="rate-val" v-if="form[q.questionId]">{{ form[q.questionId] }} / {{ q._max || 5 }}</span>
+            </div>
             <div v-else-if="q.qType === 'nps'" class="nps-box">
               <div class="nps-labels"><span>{{ q._leftLabel || '不可能' }}</span><span>{{ q._rightLabel || '非常可能' }}</span></div>
               <div class="nps-row">
                 <button type="button" v-for="n in 11" :key="n-1" class="nps-btn" :class="{ on: form[q.questionId] === (n-1) }" @click="form[q.questionId]=n-1; onSinglePick(q)">{{ n-1 }}</button>
               </div>
             </div>
-            <input v-else-if="q.qType === 'slider' || q.qType === 'number'" type="number" :min="q._min" :max="q._max" :step="q._step || 1" v-model.number="form[q.questionId]" @change="onChange" />
-            <input v-else-if="q.qType === 'date'" type="date" v-model="form[q.questionId]" />
-            <input v-else-if="q.qType === 'time'" type="time" v-model="form[q.questionId]" />
-            <input v-else-if="q.qType === 'datetime'" type="datetime-local" v-model="form[q.questionId]" />
-            <textarea v-else-if="q.qType === 'textarea'" rows="3" v-model="form[q.questionId]" :placeholder="q._placeholder || '请输入'" :maxlength="q._maxLength || undefined" />
+            <div v-else-if="q.qType === 'slider'" class="slider-box">
+              <div class="slider-meta">
+                <span>{{ q._min != null ? q._min : 0 }}</span>
+                <strong>{{ form[q.questionId] == null || form[q.questionId] === '' ? '—' : form[q.questionId] }}</strong>
+                <span>{{ q._max != null ? q._max : 100 }}</span>
+              </div>
+              <input
+                class="slider-range"
+                type="range"
+                :min="q._min != null ? q._min : 0"
+                :max="q._max != null ? q._max : 100"
+                :step="q._step || 1"
+                :value="form[q.questionId] == null || form[q.questionId] === '' ? (q._min != null ? q._min : 0) : form[q.questionId]"
+                @input="form[q.questionId] = Number($event.target.value); onChange()"
+              />
+            </div>
+            <div v-else-if="q.qType === 'number'" class="number-box">
+              <input
+                class="ctrl"
+                type="number"
+                :min="q._min"
+                :max="q._max"
+                :step="q._step || 1"
+                v-model.number="form[q.questionId]"
+                @change="onChange"
+              />
+              <p v-if="q._min != null || q._max != null" class="tip">
+                范围 {{ q._min != null ? q._min : '不限' }} ~ {{ q._max != null ? q._max : '不限' }}
+              </p>
+            </div>
+            <div v-else-if="q.qType === 'date' || q.qType === 'time' || q.qType === 'datetime'" class="date-wrap">
+              <input
+                class="ctrl date-ctrl"
+                :type="q.qType === 'datetime' ? 'datetime-local' : q.qType"
+                v-model="form[q.questionId]"
+              />
+            </div>
+            <textarea v-else-if="q.qType === 'textarea'" class="ctrl" rows="4" v-model="form[q.questionId]" :placeholder="q._placeholder || '请输入'" :maxlength="q._maxLength || undefined" />
 
-            <div v-else-if="q.qType === 'file'">
-              <input type="file" @change="onFile($event, q)" />
-              <p class="tip" v-if="form[q.questionId] && form[q.questionId].originalFilename">已选：{{ form[q.questionId].originalFilename }}</p>
+            <div v-else-if="q.qType === 'file'" class="file-box">
+              <label class="file-pick">
+                <input type="file" @change="onFile($event, q)" />
+                <span>{{ (form[q.questionId] && form[q.questionId].originalFilename) || '选择文件' }}</span>
+              </label>
               <p class="tip">{{ q._placeholder || ('最大 ' + (q._maxSizeMb || 5) + 'MB（上限 10MB）') }}</p>
             </div>
 
             <input
               v-else
+              class="ctrl"
               :type="h5InputType(q)"
               v-model="form[q.questionId]"
               :placeholder="h5Placeholder(q)"
@@ -225,28 +303,56 @@
         </div>
           </div>
         </Transition>
-        <div v-if="needCaptcha && (fillMode === 'all' || isLastStep)" class="captcha-row">
-          <input v-model="captchaCode" placeholder="验证码" maxlength="6" />
-          <img v-if="captchaUrl" :src="captchaUrl" alt="captcha" @click="refreshCaptcha" />
-          <button type="button" class="btn link" @click="refreshCaptcha">换一张</button>
+        <div class="fill-foot">
+          <div v-if="needCaptcha && (fillMode === 'all' || isLastStep)" class="captcha-field">
+            <div class="captcha-head">
+              <label>验证码 <span class="req">*</span></label>
+              <button type="button" class="captcha-refresh-btn" :disabled="captchaLoading" @click="refreshCaptcha">
+                <span class="captcha-refresh-ico" :class="{ spin: captchaLoading }" aria-hidden="true">↻</span>
+                换一张
+              </button>
+            </div>
+            <div class="captcha-row">
+              <input
+                v-model="captchaCode"
+                class="captcha-input"
+                placeholder="请输入计算结果"
+                maxlength="6"
+                inputmode="numeric"
+                autocomplete="off"
+                @keyup.enter="submit"
+              />
+              <button
+                type="button"
+                class="captcha-media"
+                :class="{ loading: captchaLoading || !captchaUrl }"
+                title="点击刷新验证码"
+                @click="refreshCaptcha"
+              >
+                <img v-if="captchaUrl" :src="captchaUrl" alt="验证码" draggable="false" />
+                <span v-else class="captcha-loading">加载中</span>
+              </button>
+            </div>
+            <p class="captcha-hint">看不清可点击图片或「换一张」刷新</p>
+          </div>
+          <div class="actions" :class="{ step: fillMode === 'step' || fillMode === 'pages' }">
+            <button v-if="fillMode === 'step' || fillMode === 'pages'" class="btn" type="button" :disabled="stepIndex <= 0" @click="prevStep">{{ fillMode === 'pages' ? '上一页' : '上一题' }}</button>
+            <button
+              v-if="(fillMode === 'step' || fillMode === 'pages') && !isLastStep"
+              class="btn primary"
+              type="button"
+              @click="nextStep"
+            >{{ fillMode === 'pages' ? '下一页' : '下一题' }}</button>
+            <button
+              v-else
+              class="btn primary"
+              type="button"
+              :disabled="submitting"
+              @click="submit"
+            >{{ submitting ? '提交中…' : '提交' }}</button>
+          </div>
+          <p class="msg" v-if="error">{{ error }}</p>
         </div>
-        <div class="actions" :class="{ step: fillMode === 'step' || fillMode === 'pages' }">
-          <button v-if="fillMode === 'step' || fillMode === 'pages'" class="btn" type="button" :disabled="stepIndex <= 0" @click="prevStep">{{ fillMode === 'pages' ? '上一页' : '上一题' }}</button>
-          <button
-            v-if="(fillMode === 'step' || fillMode === 'pages') && !isLastStep"
-            class="btn primary"
-            type="button"
-            @click="nextStep"
-          >{{ fillMode === 'pages' ? '下一页' : '下一题' }}</button>
-          <button
-            v-else
-            class="btn primary"
-            type="button"
-            :disabled="submitting"
-            @click="submit"
-          >提交</button>
-        </div>
-        <p class="msg" v-if="error">{{ error }}</p>
       </template>
       <p class="empty" v-else>{{ error || '问卷不可用或未发布' }}</p>
     </div>
@@ -256,7 +362,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { surveyMeta, surveySubmit, surveyUploadUrl, getCaptchaImage, surveyDraft, saveSurveyDraft } from '@/api/open'
+import { surveyMeta, surveySubmit, surveyUploadUrl, getCaptchaImage, surveyDraft, saveSurveyDraft, surveyEvent } from '@/api/open'
 import SurveySignaturePad from '@/components/SurveySignaturePad.vue'
 import {
   normalizeQuestion,
@@ -281,6 +387,12 @@ import {
   markSubmitted,
   isSubmittedLocally
 } from '@/utils/bizSurveyDraft'
+import {
+  normalizeSurveyTheme,
+  buildSurveyPageStyle,
+  buildSurveyHeroStyle,
+  buildSurveyTitleStyle
+} from '@/utils/bizSurveyTheme'
 
 const route = useRoute()
 const code = computed(() => route.params.code)
@@ -288,6 +400,11 @@ const apiBase = import.meta.env.VITE_APP_BASE_API || ''
 const metaLoading = ref(false)
 const submitting = ref(false)
 const submitted = ref(false)
+const answerId = ref(null)
+const voucherNo = computed(() => {
+  if (!answerId.value) return ''
+  return 'TCY-' + String(code.value || '').toUpperCase() + '-' + answerId.value
+})
 const needPwd = ref(false)
 const unlocked = ref(false)
 const accessPwd = ref('')
@@ -303,18 +420,30 @@ const needCaptcha = ref(false)
 const captchaCode = ref('')
 const captchaUuid = ref('')
 const captchaUrl = ref('')
+const captchaLoading = ref(false)
 const channel = computed(() => String(route.query.channel || '').trim())
 const allowAgain = ref(true)
 const clientToken = ref('')
+const startLogged = ref(false)
 const stepIndex = ref(0)
 const stepDir = ref(1)
 let draftTimer = null
 let autoAdvanceTimer = null
 
-const pageStyle = computed(() => ({
-  '--theme': (theme.value && theme.value.color) || '#1677ff',
-  background: (theme.value && theme.value.bg) || undefined
-}))
+const pageStyle = computed(() => buildSurveyPageStyle(theme.value, apiBase))
+const heroStyle = computed(() => buildSurveyHeroStyle(theme.value))
+const titleStyle = computed(() => buildSurveyTitleStyle(theme.value))
+const themeNorm = computed(() => normalizeSurveyTheme(theme.value))
+const showTitle = computed(() => themeNorm.value.showTitle)
+const showDesc = computed(() => themeNorm.value.showDesc)
+const showHero = computed(() => showTitle.value || (showDesc.value && !!surveyDesc.value))
+const successTitle = computed(() => themeNorm.value.successTitle || '提交成功')
+const successMsg = computed(() => themeNorm.value.successMsg || '感谢您的参与')
+const successRedirectUrl = computed(() => themeNorm.value.successRedirectUrl || '')
+const showAgainBtn = computed(() => allowAgain.value && themeNorm.value.showFillAgain !== false)
+const redirectHint = ref('')
+let redirectTimer = null
+let redirectCountdown = 0
 
 const fillMode = computed(() => {
   const m = theme.value && theme.value.fillMode
@@ -426,6 +555,7 @@ function onCascadeChange(q, level, val) {
 
 function onChange() {
   tick.value++
+  trackStart()
   const vis = new Set(visibleQuestions.value.map(q => String(q.questionId)))
   Object.keys(form).forEach(qid => {
     if (!vis.has(String(qid))) {
@@ -434,6 +564,16 @@ function onChange() {
     }
   })
   scheduleDraftSave()
+}
+
+function trackStart() {
+  if (startLogged.value || !code.value || !unlocked.value) return
+  startLogged.value = true
+  surveyEvent(code.value, {
+    action: 'start',
+    channel: channel.value || undefined,
+    accessPwd: accessPwd.value || undefined
+  }).catch(() => { startLogged.value = false })
 }
 
 function onAgree(q, ev) {
@@ -522,8 +662,9 @@ async function loadMeta() {
   error.value = ''
   metaLoading.value = true
   submitted.value = false
+  answerId.value = null
   try {
-    const res = await surveyMeta(code.value, accessPwd.value || undefined)
+    const res = await surveyMeta(code.value, accessPwd.value || undefined, channel.value || undefined)
     const data = res.data || {}
     surveyName.value = data.surveyName || ''
     surveyDesc.value = data.surveyDesc || ''
@@ -538,6 +679,7 @@ async function loadMeta() {
       form[q.questionId] = defaultAnswerValue(q)
     })
     startedAt.value = Date.now()
+    startLogged.value = false
     stepIndex.value = 0
     tick.value++
     needCaptcha.value = !!data.needCaptcha
@@ -545,6 +687,7 @@ async function loadMeta() {
     clientToken.value = getOrCreateClientToken(code.value)
     if (!allowAgain.value && isSubmittedLocally(code.value)) {
       submitted.value = true
+      restoreVoucher()
     } else {
       maybeRestoreDraft()
     }
@@ -557,6 +700,8 @@ async function loadMeta() {
 }
 
 async function refreshCaptcha() {
+  if (captchaLoading.value) return
+  captchaLoading.value = true
   try {
     const res = await getCaptchaImage()
     captchaUrl.value = 'data:image/gif;base64,' + res.img
@@ -564,6 +709,8 @@ async function refreshCaptcha() {
     captchaCode.value = ''
   } catch (e) {
     error.value = e.message || '验证码加载失败'
+  } finally {
+    captchaLoading.value = false
   }
 }
 
@@ -638,7 +785,7 @@ async function submit() {
         ? String(form[q.questionId] == null ? '' : form[q.questionId])
         : form[q.questionId]
     }))
-    await surveySubmit(code.value, {
+    const res = await surveySubmit(code.value, {
       costMs: Date.now() - startedAt.value,
       accessPwd: accessPwd.value || undefined,
       channel: channel.value || undefined,
@@ -647,8 +794,16 @@ async function submit() {
       uuid: needCaptcha.value ? captchaUuid.value : undefined,
       answers
     })
+    const aid = res && res.data && res.data.answerId
+    answerId.value = aid != null ? aid : null
+    if (answerId.value != null) {
+      try {
+        sessionStorage.setItem('tcy_voucher_' + code.value, String(answerId.value))
+      } catch (_) { /* ignore */ }
+    }
     submitted.value = true
     markSubmitted(code.value)
+    scheduleSuccessRedirect()
   } catch (e) {
     error.value = e.message || '提交失败'
     if (needCaptcha.value) await refreshCaptcha()
@@ -657,20 +812,293 @@ async function submit() {
   }
 }
 
+function printVoucher() {
+  window.print()
+}
+
+function clearSuccessRedirect() {
+  if (redirectTimer) {
+    clearInterval(redirectTimer)
+    redirectTimer = null
+  }
+  redirectHint.value = ''
+  redirectCountdown = 0
+}
+
+function scheduleSuccessRedirect() {
+  clearSuccessRedirect()
+  const url = successRedirectUrl.value
+  if (!url) return
+  let sec = Number(themeNorm.value.successRedirectSec)
+  if (!Number.isFinite(sec) || sec < 0) sec = 0
+  if (sec === 0) {
+    window.location.href = url
+    return
+  }
+  redirectCountdown = Math.floor(sec)
+  redirectHint.value = redirectCountdown + ' 秒后自动跳转…'
+  redirectTimer = setInterval(() => {
+    redirectCountdown -= 1
+    if (redirectCountdown <= 0) {
+      clearSuccessRedirect()
+      window.location.href = url
+    } else {
+      redirectHint.value = redirectCountdown + ' 秒后自动跳转…'
+    }
+  }, 1000)
+}
+
 function again() {
   if (!allowAgain.value) return
+  clearSuccessRedirect()
   submitted.value = false
+  answerId.value = null
   clearDraft(code.value)
   loadMeta()
 }
 
+function restoreVoucher() {
+  try {
+    const raw = sessionStorage.getItem('tcy_voucher_' + code.value)
+    if (raw) answerId.value = Number(raw) || raw
+  } catch (_) { /* ignore */ }
+}
+
 onMounted(loadMeta)
-onUnmounted(() => { if (draftTimer) clearTimeout(draftTimer); if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer) })
+onUnmounted(() => {
+  if (draftTimer) clearTimeout(draftTimer)
+  if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer)
+  clearSuccessRedirect()
+})
 </script>
 
 <style scoped>
+.panel-tag {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 14px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--theme);
+  background: color-mix(in srgb, var(--theme) 12%, #fff);
+}
+.q-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.q-no {
+  flex: none;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--theme);
+  background: color-mix(in srgb, var(--theme) 12%, #fff);
+  line-height: 1;
+  margin-top: 1px;
+}
+.q-title {
+  flex: 1;
+  margin: 0 !important;
+  font-weight: 650;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--text);
+}
+.opt-list { display: grid; gap: 0; }
+.step-field {
+  padding-bottom: 4px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  animation: fieldIn .4s cubic-bezier(.22, 1, .36, 1) both;
+}
+.step-field:last-child { border-bottom: 0; margin-bottom: 8px; }
+@keyframes fieldIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.rate-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.rate-star {
+  border: 0;
+  background: transparent;
+  color: #d1d5db;
+  font-size: 28px;
+  line-height: 1;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 2px;
+  cursor: pointer;
+  transition: color .12s, transform .12s;
+}
+.rate-star.on { color: #f59e0b; }
+.rate-star:active { transform: scale(1.08); }
+.rate-val {
+  margin-left: 8px;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.loading-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 36px 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.loading-box p { margin: 0; }
+.loading-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin: 0 3px;
+  border-radius: 50%;
+  background: var(--theme);
+  animation: bounce 1s ease infinite;
+}
+.loading-dot:nth-child(2) { animation-delay: .15s; }
+.loading-dot:nth-child(3) { animation-delay: .3s; }
+@keyframes bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: .4; }
+  40% { transform: translateY(-6px); opacity: 1; }
+}
+
+.fill-foot {
+  margin-top: 8px;
+  padding-top: 4px;
+}
+.card-fill {
+  padding-bottom: 18px;
+}
+.success-mark {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--theme);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--theme) 35%, transparent);
+  animation: popIn .45s cubic-bezier(.22, 1, .36, 1) both;
+}
+@keyframes popIn {
+  from { opacity: 0; transform: scale(.7); }
+  to { opacity: 1; transform: scale(1); }
+}
+.success-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 16px;
+}
+.success-actions .btn { min-width: 120px; }
+.voucher-slip {
+  margin: 18px auto 8px;
+  max-width: 320px;
+  padding: 16px 18px;
+  border: 1.5px dashed color-mix(in srgb, var(--theme) 55%, #94a3b8);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--theme) 6%, #fff);
+  text-align: center;
+}
+.voucher-label {
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: .12em;
+  color: var(--theme);
+  margin-bottom: 6px;
+}
+.voucher-name {
+  font-size: 14px;
+  color: #334155;
+  margin-bottom: 10px;
+}
+.voucher-no {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  color: #0f172a;
+  word-break: break-all;
+}
+.voucher-hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+@media print {
+  .no-print, .hero, .site-footer, .ambient { display: none !important; }
+  .page { background: #fff !important; padding: 16mm !important; min-height: auto !important; }
+  .card-success { box-shadow: none !important; border: none !important; }
+  .voucher-slip {
+    border: 2px solid #333 !important;
+    background: #fff !important;
+    max-width: none;
+    padding: 24px;
+  }
+  .voucher-no { font-size: 22px; }
+}
+
+.date-wrap {
+  width: 100%;
+}
+.date-ctrl {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0;
+}
+.file-box { width: 100%; }
+.file-pick {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1.5px dashed color-mix(in srgb, var(--theme) 35%, var(--border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--theme) 5%, #fff);
+  color: var(--theme);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.file-pick input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.file-pick span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .step-progress {
-  display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+  display: flex; align-items: center; gap: 10px; margin-bottom: 18px;
   font-size: 12px; color: var(--muted);
 }
 .step-track {
@@ -680,22 +1108,34 @@ onUnmounted(() => { if (draftTimer) clearTimeout(draftTimer); if (autoAdvanceTim
   display: block; height: 100%; background: var(--theme); border-radius: 999px;
   transition: width .25s ease;
 }
-.actions.step { display: flex; gap: 10px; }
+.actions.step { display: flex; gap: 10px; width: 100%; }
 .actions.step .btn { flex: 1; }
 .page-title { font-size: 16px; font-weight: 650; color: var(--text); margin: 0 0 14px; }
 
-.section-box { padding: 8px 0 4px; border-bottom: 1px dashed var(--border); margin-bottom: 8px; }
-.section-box h3 { margin: 0 0 4px; font-size: 16px; color: var(--theme); }
+.section-box {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--theme) 7%, #fff);
+  border: 1px solid color-mix(in srgb, var(--theme) 14%, transparent);
+  margin-bottom: 4px;
+}
+.section-box h3 { margin: 0 0 4px; font-size: 15px; color: var(--theme); }
 .section-box p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .agreement-box {
-  border: 1px solid var(--border); border-radius: 12px; padding: 12px; background: #fafafa;
+  border: 1px solid var(--border); border-radius: 14px; padding: 14px; background: #fafafa;
 }
 .agree-body {
-  max-height: 200px; overflow: auto; margin: 8px 0 12px; padding: 10px;
-  background: #fff; border-radius: 8px; border: 1px solid #eef2f7;
+  max-height: 200px; overflow: auto; margin: 0 0 12px; padding: 12px;
+  background: #fff; border-radius: 10px; border: 1px solid #eef2f7;
   font-size: 13px; line-height: 1.55; color: var(--text);
+  overflow-wrap: anywhere;
 }
 .agree-body :deep(p) { margin: 0 0 8px; }
+.agree-body :deep(img),
+.agree-body :deep(table),
+.agree-body :deep(video) {
+  max-width: 100%;
+}
 .agree-check { margin-top: 4px; }
 .agree-sign {
   margin-top: 14px;
@@ -713,36 +1153,135 @@ onUnmounted(() => { if (draftTimer) clearTimeout(draftTimer); if (autoAdvanceTim
 
 .img-opts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .img-opt {
+  position: relative;
   display: flex; flex-direction: column; gap: 6px; align-items: center;
-  border: 1px solid var(--border); border-radius: 12px; padding: 10px 8px;
-  cursor: pointer; background: #fff; text-align: center; font-size: 13px;
+  border: 1.5px solid var(--border); border-radius: 14px; padding: 10px 8px;
+  cursor: pointer; background: #fafbfc; text-align: center; font-size: 13px;
+  transition: border-color .15s, box-shadow .15s, background .15s;
 }
 .img-opt input { position: absolute; opacity: 0; pointer-events: none; }
-.img-opt img { width: 100%; max-height: 120px; object-fit: cover; border-radius: 8px; }
-.img-opt.on { border-color: var(--theme); box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme) 22%, transparent); }
-
-.matrix-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-.matrix-table { width: 100%; min-width: 420px; border-collapse: collapse; font-size: 13px; }
-.matrix-table th, .matrix-table td {
-  border: 1px solid var(--border); padding: 8px 6px; text-align: center; white-space: nowrap;
+.img-opt img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  max-height: 140px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #f1f5f9;
 }
-.matrix-table th:first-child, .matrix-table td:first-child { text-align: left; white-space: normal; min-width: 88px; }
+.img-opt span {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+  line-height: 1.35;
+}
+.img-opt.on {
+  border-color: var(--theme);
+  background: color-mix(in srgb, var(--theme) 8%, #fff);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme) 14%, transparent);
+}
+
+.matrix-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 12px; border: 1px solid var(--border); }
+.matrix-table { width: 100%; min-width: 0; border-collapse: collapse; font-size: 13px; }
+.matrix-table th, .matrix-table td {
+  border-bottom: 1px solid var(--border); border-right: 1px solid var(--border);
+  padding: 0; text-align: center; white-space: nowrap;
+}
+.matrix-table th { padding: 10px 8px; }
+.matrix-table th:last-child, .matrix-table td:last-child { border-right: 0; }
+.matrix-table tr:last-child td { border-bottom: 0; }
+.matrix-table th:first-child,
+.matrix-table td.matrix-row-label {
+  text-align: left; white-space: normal; min-width: 72px; max-width: 120px; padding: 10px 12px;
+}
 .matrix-table thead th { background: color-mix(in srgb, var(--theme) 8%, #fff); color: var(--muted); font-weight: 600; }
+.matrix-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 48px;
+  margin: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.matrix-cell input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.matrix-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  background: #fff;
+  box-shadow: inset 0 0 0 0 var(--theme);
+  transition: border-color .15s, box-shadow .15s;
+}
+.matrix-cell.on .matrix-dot {
+  border-color: var(--theme);
+  box-shadow: inset 0 0 0 5px var(--theme);
+}
 
 .cascade-wrap { display: grid; gap: 8px; }
 
+.slider-box { margin-top: 2px; }
+.slider-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.slider-meta strong {
+  font-size: 18px;
+  color: var(--theme);
+  font-weight: 700;
+  min-width: 2.5em;
+  text-align: center;
+}
+.slider-range {
+  display: block;
+  width: 100%;
+  height: 44px;
+  margin: 0;
+  accent-color: var(--theme);
+  cursor: pointer;
+}
+.number-box .tip { margin-top: 6px; }
+
 .nps-box { margin-top: 4px; }
 .nps-labels { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; margin-bottom: 8px; }
-.nps-row { display: flex; flex-wrap: wrap; gap: 6px; }
-.nps-btn {
-  width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border);
-  background: #fff; cursor: pointer; font-size: 14px; color: var(--text);
+.nps-row {
+  display: grid;
+  grid-template-columns: repeat(11, minmax(0, 1fr));
+  gap: 4px;
 }
+.nps-btn {
+  min-width: 0;
+  width: 100%;
+  min-height: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+  transition: background .12s, border-color .12s, color .12s, transform .12s;
+}
+.nps-btn:active { transform: scale(.96); }
 .nps-btn.on { background: var(--theme); color: #fff; border-color: var(--theme); }
 .likert-box { margin-top: 4px; }
 .likert-row {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(56px, 1fr));
   gap: 6px;
 }
 .likert-btn {
@@ -752,24 +1291,164 @@ onUnmounted(() => { if (draftTimer) clearTimeout(draftTimer); if (autoAdvanceTim
   gap: 4px;
   min-height: 58px;
   padding: 8px 4px;
-  border-radius: 10px;
-  border: 1px solid #e5e7eb;
-  background: #fff;
+  border-radius: 12px;
+  border: 1.5px solid #e5e7eb;
+  background: #fafbfc;
   color: #334155;
+  transition: border-color .15s, background .15s;
 }
 .likert-btn em { font-style: normal; font-weight: 700; font-size: 14px; }
-.likert-btn span { font-size: 10px; line-height: 1.25; color: #64748b; text-align: center; }
+.likert-btn span {
+  font-size: 11px;
+  line-height: 1.25;
+  color: #64748b;
+  text-align: center;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
 .likert-btn.on { border-color: var(--theme); background: color-mix(in srgb, var(--theme) 12%, #fff); }
 .likert-btn.on em,
 .likert-btn.on span { color: var(--theme); }
 
-.captcha-row { display: flex; gap: 10px; align-items: center; }
-.captcha-row input { flex: 1; }
-.captcha-row img { height: 40px; border-radius: 8px; cursor: pointer; border: 1px solid var(--border); }
+.captcha-field {
+  margin: 8px 0 14px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--theme) 18%, var(--border));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--theme) 6%, #fff) 0%, #fff 100%);
+}
+.captcha-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.captcha-field .captcha-head > label {
+  display: block;
+  font-weight: 650;
+  margin: 0;
+  font-size: 15px;
+}
+.captcha-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--theme);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 2px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.captcha-refresh-btn:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+.captcha-refresh-ico {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  font-style: normal;
+  font-size: 14px;
+  line-height: 1;
+}
+.captcha-refresh-ico.spin {
+  animation: captchaSpin .7s linear infinite;
+}
+@keyframes captchaSpin {
+  to { transform: rotate(360deg); }
+}
+.captcha-row {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+.captcha-input {
+  flex: 1;
+  min-width: 0;
+  height: 48px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0 14px;
+  font-size: 16px;
+  letter-spacing: 0.06em;
+  background: #fff;
+  outline: none;
+}
+.captcha-input:focus {
+  border-color: var(--theme);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme) 16%, transparent);
+}
+.captcha-media {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 132px;
+  height: 48px;
+  padding: 4px 8px;
+  border: 1px dashed color-mix(in srgb, var(--theme) 28%, var(--border));
+  border-radius: 12px;
+  background:
+    repeating-linear-gradient(
+      -12deg,
+      #f8fafc,
+      #f8fafc 8px,
+      #f1f5f9 8px,
+      #f1f5f9 16px
+    );
+  overflow: hidden;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color .15s, box-shadow .15s;
+}
+.captcha-media:active {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--theme) 18%, transparent);
+}
+.captcha-media.loading {
+  opacity: .85;
+}
+.captcha-media img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border: 0;
+  image-rendering: auto;
+  border-radius: 4px;
+  background: #fff;
+}
+.captcha-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #94a3b8;
+}
+.captcha-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.4;
+}
 
 @media (max-width: 480px) {
   .img-opts { grid-template-columns: 1fr; }
-  .nps-btn { width: 30px; height: 30px; font-size: 13px; }
+  .nps-btn { min-height: 36px; height: 36px; font-size: 12px; }
+  .captcha-media { width: 118px; }
+  .captcha-refresh-btn { min-height: 36px; padding: 6px 4px; }
 }
 
 .step-stage { position: relative; min-height: 120px; }
@@ -783,4 +1462,22 @@ onUnmounted(() => { if (draftTimer) clearTimeout(draftTimer); if (autoAdvanceTim
 .step-prev-leave-to { opacity: 0; transform: translateX(14px); }
 .btn.primary { transition: transform .12s ease, box-shadow .12s ease; }
 .btn.primary:active:not(:disabled) { transform: scale(.98); }
+.success { text-align: center; padding: 12px 0 4px; }
+.success h2 { margin: 0 0 8px; color: var(--theme); font-size: 22px; }
+.success .btn { display: inline-block; margin: 0; text-decoration: none; }
+.btn.ghost {
+  background: #fff;
+  color: var(--theme);
+  border: 1px solid color-mix(in srgb, var(--theme) 35%, #cbd5e1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.redirect-hint { color: #64748b; font-size: 13px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .step-field, .success-mark, .loading-dot {
+    animation: none !important;
+  }
+}
 </style>

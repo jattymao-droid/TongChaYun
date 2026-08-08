@@ -1,35 +1,35 @@
 <template>
   <div class="poster-bg-form">
     <el-form-item :label="typeLabel">
-      <el-radio-group :value="model.posterBgType || 'theme'" @input="set('posterBgType', $event)">
+      <el-radio-group :value="bgType" @input="set(typeKey, $event)">
         <el-radio label="theme">主题渐变</el-radio>
         <el-radio label="color">纯色</el-radio>
         <el-radio label="image">自定义图</el-radio>
       </el-radio-group>
     </el-form-item>
-    <el-form-item v-if="(model.posterBgType || 'theme') === 'color'" label="背景色">
+    <el-form-item v-if="bgType === 'color'" label="背景色">
       <div class="theme-row">
         <span
           v-for="c in colorPresets"
           :key="c"
           class="swatch"
           :style="{ background: c }"
-          :class="{ active: model.posterBgColor === c }"
-          @click="set('posterBgColor', c)"
+          :class="{ active: bgColor === c }"
+          @click="set(colorKey, c)"
         />
         <el-color-picker
-          :value="model.posterBgColor || '#eef2ff'"
-          @input="set('posterBgColor', $event)"
+          :value="bgColor || '#eef2ff'"
+          @input="set(colorKey, $event)"
         />
       </div>
     </el-form-item>
-    <template v-if="(model.posterBgType || 'theme') === 'image'">
+    <template v-if="bgType === 'image'">
       <el-form-item label="背景图">
         <image-upload
-          :value="model.posterBgImage || ''"
+          :value="bgImage || ''"
           :limit="1"
           :file-size="3"
-          @input="set('posterBgImage', $event)"
+          @input="set(imageKey, $event)"
         />
       </el-form-item>
       <el-form-item label="遮罩强度">
@@ -39,7 +39,7 @@
           :max="90"
           :step="5"
           show-input
-          @input="set('posterBgOverlay', $event)"
+          @input="set(overlayKey, $event)"
         />
         <p class="tip">数值越高文字越清晰，建议 30–50</p>
       </el-form-item>
@@ -56,6 +56,11 @@ export default {
       type: Object,
       required: true
     },
+    /** Field prefix: posterBg → posterBgType; pageBg → pageBgType */
+    prefix: {
+      type: String,
+      default: 'posterBg'
+    },
     typeLabel: {
       type: String,
       default: '海报背景'
@@ -71,8 +76,21 @@ export default {
     }
   },
   computed: {
+    typeKey() { return this.prefix + 'Type' },
+    colorKey() { return this.prefix + 'Color' },
+    imageKey() { return this.prefix + 'Image' },
+    overlayKey() { return this.prefix + 'Overlay' },
+    bgType() {
+      return this.model[this.typeKey] || 'theme'
+    },
+    bgColor() {
+      return this.model[this.colorKey]
+    },
+    bgImage() {
+      return this.model[this.imageKey]
+    },
     overlayValue() {
-      const n = Number(this.model.posterBgOverlay)
+      const n = Number(this.model[this.overlayKey])
       return Number.isNaN(n) ? 40 : n
     }
   },

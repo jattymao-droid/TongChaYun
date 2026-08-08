@@ -1,6 +1,9 @@
 <template>
-  <div :class="embedded ? 'fields-embed' : 'app-container'">
-    <el-page-header v-if="!embedded" @back="goBack" :content="'字段配置 - ' + (detail.query && detail.query.queryName || '')" class="mb12" />
+  <div :class="embedded ? 'fields-embed' : 'biz-page'">
+    <div v-if="!embedded" class="biz-page-head">
+      <el-page-header @back="goBack" :content="'字段配置 - ' + (detail.query && detail.query.queryName || '')" />
+    </div>
+    <div :class="embedded ? '' : 'biz-panel'">
     <el-alert title="可配置查询条件（必填/选填组合）、匹配方式、结果列与脱敏。公开查询至少填一项条件，必填项需全部填写。" type="info" :closable="false" show-icon class="mb12" />
     <el-table :data="fields" v-loading="loading" border>
       <el-table-column label="键" prop="fieldKey" width="70" align="center" />
@@ -112,6 +115,7 @@
     </div>
     <div class="mt16" v-else>
       <el-button type="primary" plain size="small" @click="handleSave" v-hasPermi="['biz:query:edit']">保存字段配置</el-button>
+    </div>
     </div>
   </div>
 </template>

@@ -312,44 +312,28 @@
   opacity: 0.75;
 }
 .sk-hero-orbs .o1 {
-  width: 340px;
-  height: 340px;
+  width: 320px;
+  height: 320px;
   left: -6%;
-  top: 2%;
-  background: radial-gradient(circle at 35% 35%, rgba(125, 211, 252, 0.7), rgba(37, 99, 235, 0.18) 55%, transparent 72%);
-  animation: skOrbA 10s ease-in-out infinite;
+  top: 4%;
+  background: radial-gradient(circle at 35% 35%, rgba(125, 211, 252, 0.55), rgba(37, 99, 235, 0.14) 55%, transparent 72%);
+  animation: skOrbA 14s ease-in-out infinite;
 }
 .sk-hero-orbs .o2 {
-  width: 260px;
-  height: 260px;
-  right: 2%;
-  top: -2%;
-  background: radial-gradient(circle at 40% 40%, rgba(56, 189, 248, 0.65), rgba(30, 64, 175, 0.16) 60%, transparent 75%);
-  animation: skOrbB 12s ease-in-out infinite;
+  width: 240px;
+  height: 240px;
+  right: 4%;
+  top: 0%;
+  background: radial-gradient(circle at 40% 40%, rgba(56, 189, 248, 0.45), rgba(30, 64, 175, 0.12) 60%, transparent 75%);
+  animation: skOrbB 16s ease-in-out infinite;
 }
 .sk-hero-orbs .o3 {
-  width: 380px;
-  height: 380px;
-  right: 12%;
-  bottom: -14%;
-  background: radial-gradient(circle at 50% 40%, rgba(37, 99, 235, 0.38), transparent 70%);
-  animation: skOrbC 15s ease-in-out infinite;
-}
-.sk-hero-orbs .o4 {
-  width: 180px;
-  height: 180px;
-  left: 36%;
-  top: 12%;
-  background: radial-gradient(circle at 50% 50%, rgba(186, 230, 253, 0.75), transparent 70%);
-  animation: skOrbA 8s ease-in-out infinite reverse;
-}
-.sk-hero-orbs .o5 {
-  width: 120px;
-  height: 120px;
-  left: 18%;
-  bottom: 18%;
-  background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.55), transparent 70%);
-  animation: skOrbB 9s ease-in-out infinite 1s;
+  width: 300px;
+  height: 300px;
+  right: 18%;
+  bottom: -8%;
+  background: radial-gradient(circle at 50% 40%, rgba(37, 99, 235, 0.28), transparent 70%);
+  animation: skOrbC 18s ease-in-out infinite;
 }
 .sk-hero-rings {
   position: absolute;
@@ -415,7 +399,7 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  opacity: 1;
+  opacity: 0.72;
 }
 .sk-hero-grid {
   position: absolute;
@@ -578,7 +562,7 @@
   color: var(--js-brand-deep);
 }
 .sk-hero-copy h1 {
-  margin: 0 0 18px;
+  margin: 0 0 16px;
   font-family: 'Syne', 'PingFang SC', sans-serif;
   font-size: clamp(32px, 4.6vw, 52px);
   font-weight: 800;
@@ -586,42 +570,18 @@
   letter-spacing: -0.035em;
   color: #0f172a;
 }
-.sk-cap-line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 4px;
-  margin: 0 0 20px;
-  font-size: 15px;
-  color: #475569;
-  line-height: 1.6;
-}
-.sk-cap-line i {
-  color: #94a3b8;
-  font-style: normal;
-  margin: 0 4px;
-}
-.sk-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.sk-lead {
   margin: 0 0 28px;
-}
-.sk-chips span {
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  font-size: 13px;
-  color: #334155;
-  font-weight: 500;
+  max-width: 460px;
+  font-size: 16px;
+  line-height: 1.65;
+  color: #475569;
 }
 
 /* Hero device mock */
 .sk-hero-visual {
   position: relative;
-  min-height: 420px;
-  animation: jsFloat 6s ease-in-out infinite;
+  min-height: 400px;
 }
 .sk-device {
   position: relative;
@@ -1233,16 +1193,21 @@
 }
 .js-code-row {
   display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
   gap: 10px;
   align-items: center;
   width: 100%;
 }
 .code-item ::v-deep .el-form-item__content {
-  display: flex;
-  gap: 10px;
-  align-items: center;
+  display: block;
 }
-.code-input { flex: 1; }
+.js-code-row .code-input.el-input,
+.code-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+}
 .login-code {
   width: 118px;
   height: 46px;
@@ -1251,7 +1216,7 @@
   border: 1px solid #dbe3f0;
   background: #fff;
   cursor: pointer;
-  flex-shrink: 0;
+  flex: 0 0 118px;
   transition: border-color 0.15s ease, transform 0.15s ease;
 }
 .login-code:hover {
@@ -1261,8 +1226,9 @@
 .login-code-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
+  background: #f8fafc;
 }
 .card-row {
   display: flex;
@@ -1527,14 +1493,22 @@
   color: var(--js-brand-deep);
 }
 .js-login-dialog .js-code-row {
-  width: 100%;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
   gap: 12px;
+  width: 100%;
 }
+.js-login-dialog .js-code-row .code-input.el-input,
 .js-login-dialog .code-input {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
+  width: auto;
 }
+.js-login-dialog .js-code-row .login-code,
 .js-login-dialog .login-code {
+  flex: 0 0 120px;
   width: 120px;
   height: 50px;
   border-radius: 14px;
@@ -1542,7 +1516,7 @@
   border: 1.5px solid #e2e8f0;
   background: #fff;
   cursor: pointer;
-  flex-shrink: 0;
+  align-self: center;
   transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 .js-login-dialog .login-code:hover {
@@ -1553,8 +1527,9 @@
 .js-login-dialog .login-code-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
+  background: #f8fafc;
 }
 .js-login-dialog .card-foot {
   margin-top: 0;
@@ -1603,11 +1578,18 @@
   .sk-why-grid {
     grid-template-columns: 1fr;
   }
-  .sk-hero-visual { min-height: auto; animation: none; }
-  .sk-float { display: none; }
-  .sk-hero-rings,
+  .sk-hero-visual { min-height: auto; }
+  .sk-hero-canvas,
+  .sk-hero-aurora,
   .sk-hero-beams,
-  .sk-hero-floor { display: none; }
+  .sk-hero-rings,
+  .sk-hero-floor,
+  .sk-hero-grid,
+  .sk-hero-meteors,
+  .sk-hero-shine,
+  .sk-float { display: none !important; }
+  .sk-hero-orbs .orb { animation: none; opacity: 0.55; }
+  .sk-hero-mesh { animation: none; }
   .sk-device-body { grid-template-columns: 1fr; }
   .sk-side { display: none; }
   .sk-steps,
@@ -1620,16 +1602,8 @@
   .sk-status-dot,
   .sk-stats > div,
   .sk-hero-mesh,
-  .sk-hero-orbs .orb,
-  .sk-hero-grid,
-  .sk-hero-shine,
-  .sk-hero-aurora .band,
-  .sk-hero-beams i,
-  .sk-hero-rings .ring,
-  .sk-hero-floor,
-  .sk-hero-meteors span {
+  .sk-hero-orbs .orb {
     animation: none !important;
   }
-  .sk-hero-canvas,
-  .sk-hero-meteors { display: none; }
+  .sk-hero-canvas { display: none; }
 }

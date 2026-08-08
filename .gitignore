@@ -46,3 +46,17 @@ nbdist/
 !*/build/*.html
 !*/build/*.xml
 ruoyi-ui/src/assets/logo/mingchatong-logo-source.png
+
+######################################################################
+# Local / deploy artifacts
+.DS_Store
+**/.DS_Store
+logs/
+deploy/logs/
+deploy/.staging/
+deploy/release/*.tar.gz
+deploy/sql/full_dump.sql
+**/full_dump.sql
+deploy/env.sh
+deploy/.!*
+deploy/**/.!*

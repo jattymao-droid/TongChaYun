@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.biz.mapper.BizPublishRequestMapper">
+
+    <resultMap type="com.ruoyi.biz.domain.BizPublishRequest" id="ReqResult">
+        <id property="requestId" column="request_id"/>
+        <result property="projectType" column="project_type"/>
+        <result property="projectId" column="project_id"/>
+        <result property="projectName" column="project_name"/>
+        <result property="status" column="status"/>
+        <result property="applyBy" column="apply_by"/>
+        <result property="applyUserId" column="apply_user_id"/>
+        <result property="applyTime" column="apply_time"/>
+        <result property="reviewBy" column="review_by"/>
+        <result property="reviewUserId" column="review_user_id"/>
+        <result property="reviewTime" column="review_time"/>
+        <result property="reviewRemark" column="review_remark"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.ruoyi.biz.domain.BizPublishRequest" useGeneratedKeys="true" keyProperty="requestId">
+        insert into biz_publish_request (
+            project_type, project_id, project_name, status, apply_by, apply_user_id, apply_time
+        ) values (
+            #{projectType}, #{projectId}, #{projectName}, coalesce(#{status}, '0'),
+            #{applyBy}, #{applyUserId}, now()
+        )
+    </insert>
+
+    <select id="selectById" resultMap="ReqResult">
+        select * from biz_publish_request where request_id = #{requestId}
+    </select>
+
+    <select id="selectList" resultMap="ReqResult">
+        select * from biz_publish_request
+        <where>
+            <if test="status != null and status != ''">and status = #{status}</if>
+            <if test="projectType != null and projectType != ''">and project_type = #{projectType}</if>
+            <if test="projectId != null">and project_id = #{projectId}</if>
+            <if test="applyUserId != null">and apply_user_id = #{applyUserId}</if>
+        </where>
+        order by request_id desc
+    </select>
+
+    <update id="updateReview" parameterType="com.ruoyi.biz.domain.BizPublishRequest">
+        update biz_publish_request
+        set status = #{status},
+            review_by = #{reviewBy},
+            review_user_id = #{reviewUserId},
+            review_time = now(),
+            review_remark = #{reviewRemark}
+        where request_id = #{requestId}
+    </update>
+
+    <select id="countPendingByProject" resultType="int">
+        select count(*) from biz_publish_request
+        where project_type = #{projectType} and project_id = #{projectId} and status = '0'
+    </select>
+</mapper>

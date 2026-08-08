@@ -42,6 +42,19 @@ public class BizSurvey extends BaseEntity
     private String ownerName;
     /** Display only: creator nickname (joined) */
     private String ownerNickName;
+    /** 预约发布时间 */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private Date publishAt;
+    /** 新答卷邮件通知 0/1 */
+    private String mailNotify;
+    /** 通知邮箱，逗号分隔 */
+    private String mailNotifyTo;
+    /** 截止前提醒小时数 */
+    private Integer remindHours;
+    /** 截止提醒已发送 0/1 */
+    private String remindSent;
+    /** 截止提醒发邮件 0/1 */
+    private String remindMail;
 
     public Long getSurveyId() { return surveyId; }
     public void setSurveyId(Long surveyId) { this.surveyId = surveyId; }
@@ -85,4 +98,16 @@ public class BizSurvey extends BaseEntity
     public void setOwnerName(String ownerName) { this.ownerName = ownerName; }
     public String getOwnerNickName() { return ownerNickName; }
     public void setOwnerNickName(String ownerNickName) { this.ownerNickName = ownerNickName; }
+    public Date getPublishAt() { return publishAt; }
+    public void setPublishAt(Date publishAt) { this.publishAt = publishAt; }
+    public String getMailNotify() { return mailNotify; }
+    public void setMailNotify(String mailNotify) { this.mailNotify = mailNotify; }
+    public String getMailNotifyTo() { return mailNotifyTo; }
+    public void setMailNotifyTo(String mailNotifyTo) { this.mailNotifyTo = mailNotifyTo; }
+    public Integer getRemindHours() { return remindHours; }
+    public void setRemindHours(Integer remindHours) { this.remindHours = remindHours; }
+    public String getRemindSent() { return remindSent; }
+    public void setRemindSent(String remindSent) { this.remindSent = remindSent; }
+    public String getRemindMail() { return remindMail; }
+    public void setRemindMail(String remindMail) { this.remindMail = remindMail; }
 }

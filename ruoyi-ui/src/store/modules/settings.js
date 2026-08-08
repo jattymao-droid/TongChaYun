@@ -14,7 +14,7 @@ const state = {
   siteIcp: '',
   mailVerifyEnabled: false,
   mailResetEnabled: false,
-  theme: storageSetting.theme || '#2b6de5',
+  theme: storageSetting.theme || '#1d4ed8',
   sideTheme: storageSetting.sideTheme || sideTheme,
   showSettings: showSettings,
   navType: storageSetting.navType === undefined ? navType : storageSetting.navType,

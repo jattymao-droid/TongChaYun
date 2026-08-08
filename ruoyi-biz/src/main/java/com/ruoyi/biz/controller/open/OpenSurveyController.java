@@ -29,9 +29,18 @@ public class OpenSurveyController
     @RateLimiter(time = 60, count = 60, limitType = LimitType.IP)
     @GetMapping("/{code}/meta")
     public AjaxResult meta(@PathVariable("code") String code,
-        @RequestParam(value = "accessPwd", required = false) String accessPwd)
+        @RequestParam(value = "accessPwd", required = false) String accessPwd,
+        @RequestParam(value = "channel", required = false) String channel)
     {
-        return AjaxResult.success(surveyService.openMeta(code, accessPwd));
+        return AjaxResult.success(surveyService.openMeta(code, accessPwd, channel));
+    }
+
+    @RateLimiter(time = 60, count = 60, limitType = LimitType.IP)
+    @PostMapping("/{code}/event")
+    public AjaxResult event(@PathVariable("code") String code, @RequestBody(required = false) Map<String, Object> body)
+    {
+        surveyService.openEvent(code, body);
+        return AjaxResult.success();
     }
 
     @RateLimiter(time = 60, count = 30, limitType = LimitType.IP)

@@ -1,6 +1,9 @@
 <template>
-  <div class="app-container user-project-page">
-    <el-form :model="queryParams" ref="queryForm" size="small" :inline="true" v-show="showSearch" label-width="68px">
+  <div class="biz-page user-project-page">
+    <div class="biz-page-head">
+      <h1 class="biz-page-title">用户项目</h1>
+    </div>
+    <el-form :model="queryParams" ref="queryForm" size="small" :inline="true" v-show="showSearch" label-width="68px" class="biz-search-bar">
       <el-form-item label="账号" prop="userName">
         <el-input v-model="queryParams.userName" placeholder="用户账号" clearable @keyup.enter.native="handleQuery" />
       </el-form-item>
@@ -19,45 +22,47 @@
       </el-form-item>
     </el-form>
 
-    <el-row :gutter="10" class="mb8">
+    <el-row :gutter="10" class="mb8 toolbar-tip">
       <el-col :span="16">
         <span class="page-tip">按用户查看其创建的查询与问卷，可跳转管理或从系统用户进入本页。</span>
       </el-col>
       <right-toolbar :showSearch.sync="showSearch" @queryTable="getList" />
     </el-row>
 
-    <el-table v-loading="loading" :data="list" border>
-      <el-table-column label="用户编号" prop="userId" width="90" align="center" />
-      <el-table-column label="账号" prop="userName" min-width="120" :show-overflow-tooltip="true" />
-      <el-table-column label="昵称" prop="nickName" min-width="120" :show-overflow-tooltip="true" />
-      <el-table-column label="部门" prop="deptName" min-width="120" :show-overflow-tooltip="true" />
-      <el-table-column label="状态" prop="status" width="80" align="center">
-        <template slot-scope="scope">
-          <el-tag size="mini" :type="scope.row.status === '0' ? 'success' : 'info'">{{ scope.row.status === '0' ? '正常' : '停用' }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="查询" align="center" width="120">
-        <template slot-scope="scope">
-          <span>{{ scope.row.queryCount || 0 }}</span>
-          <span class="sub">/ {{ scope.row.queryPublished || 0 }} 已发布</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="问卷" align="center" width="120">
-        <template slot-scope="scope">
-          <span>{{ scope.row.surveyCount || 0 }}</span>
-          <span class="sub">/ {{ scope.row.surveyPublished || 0 }} 已发布</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" align="center" width="280" class-name="small-padding fixed-width">
-        <template slot-scope="scope">
-          <el-button size="mini" type="text" icon="el-icon-search" @click="goQueries(scope.row)" v-hasPermi="['biz:query:list']">查询</el-button>
-          <el-button size="mini" type="text" icon="el-icon-document" @click="goSurveys(scope.row)" v-hasPermi="['biz:survey:list']">问卷</el-button>
-          <el-button size="mini" type="text" icon="el-icon-user" @click="goSysUser(scope.row)" v-hasPermi="['system:user:edit']">用户资料</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <div class="biz-panel is-flush">
+      <el-table v-loading="loading" :data="list">
+        <el-table-column label="用户编号" prop="userId" width="90" align="center" />
+        <el-table-column label="账号" prop="userName" min-width="120" :show-overflow-tooltip="true" />
+        <el-table-column label="昵称" prop="nickName" min-width="120" :show-overflow-tooltip="true" />
+        <el-table-column label="部门" prop="deptName" min-width="120" :show-overflow-tooltip="true" />
+        <el-table-column label="状态" prop="status" width="80" align="center">
+          <template slot-scope="scope">
+            <el-tag size="mini" :type="scope.row.status === '0' ? 'success' : 'info'">{{ scope.row.status === '0' ? '正常' : '停用' }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="查询" align="center" width="120">
+          <template slot-scope="scope">
+            <span>{{ scope.row.queryCount || 0 }}</span>
+            <span class="sub">/ {{ scope.row.queryPublished || 0 }} 已发布</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="问卷" align="center" width="120">
+          <template slot-scope="scope">
+            <span>{{ scope.row.surveyCount || 0 }}</span>
+            <span class="sub">/ {{ scope.row.surveyPublished || 0 }} 已发布</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" align="center" width="280" class-name="small-padding fixed-width">
+          <template slot-scope="scope">
+            <el-button size="mini" type="text" icon="el-icon-search" @click="goQueries(scope.row)" v-hasPermi="['biz:query:list']">查询</el-button>
+            <el-button size="mini" type="text" icon="el-icon-document" @click="goSurveys(scope.row)" v-hasPermi="['biz:survey:list']">问卷</el-button>
+            <el-button size="mini" type="text" icon="el-icon-user" @click="goSysUser(scope.row)" v-hasPermi="['system:user:edit']">用户资料</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
 
-    <pagination v-show="total > 0" :total="total" :page.sync="queryParams.pageNum" :limit.sync="queryParams.pageSize" @pagination="getList" />
+      <pagination v-show="total > 0" :total="total" :page.sync="queryParams.pageNum" :limit.sync="queryParams.pageSize" @pagination="getList" />
+    </div>
   </div>
 </template>
 
@@ -85,6 +90,7 @@ export default {
   created() {
     const uid = this.$route.query.userId
     if (uid) this.queryParams.userId = Number(uid) || uid
+    if (this.$route.query.userName) this.queryParams.userName = this.$route.query.userName
     this.getList()
   },
   methods: {
@@ -128,15 +134,16 @@ export default {
 </script>
 
 <style scoped>
+.toolbar-tip { margin-bottom: 12px; padding: 0 2px; }
 .page-tip {
   font-size: 13px;
-  color: #64748b;
+  color: var(--biz-muted);
   line-height: 28px;
 }
 .sub {
   display: block;
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--biz-muted-soft);
   margin-top: 2px;
 }
 </style>

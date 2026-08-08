@@ -52,7 +52,10 @@
             >{{ useCardLayout ? '表格视图' : '卡片视图' }}</button>
           </div>
           <div class="toolbar-right no-print">
-            <button v-if="layout.resultShowPrint !== false" class="btn anim-btn" :disabled="!rows.length" @click="doPrint">打印 / PDF</button>
+            <button v-if="layout.resultShowPrint !== false" class="btn anim-btn" :disabled="!rows.length" @click="doPrint">打印</button>
+            <button v-if="layout.resultShowExport" class="btn anim-btn primary-soft" :disabled="exportingPdf || !rows.length" @click="doExportPdf">
+              {{ exportingPdf ? 'PDF…' : '导出 PDF' }}
+            </button>
             <button v-if="layout.resultShowExport" class="btn anim-btn primary-soft" :disabled="exporting || !rows.length" @click="doExport">
               {{ exporting ? '导出中…' : '导出 Excel' }}
             </button>
@@ -189,7 +192,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { queryMeta, querySearch, queryExport, queryFieldDist } from '@/api/open'
+import { queryMeta, querySearch, queryExport, queryExportPdf, queryFieldDist } from '@/api/open'
 import {
   parseLayout,
   buildResultPageStyle,
@@ -216,6 +219,7 @@ const code = computed(() => route.params.code)
 const metaLoading = ref(false)
 const loading = ref(false)
 const exporting = ref(false)
+const exportingPdf = ref(false)
 const needPwd = ref(false)
 const unlocked = ref(false)
 const accessPwd = ref('')
@@ -485,6 +489,27 @@ async function doExport() {
   if (!error.value) showToast('导出已开始')
 }
 
+async function doExportPdf() {
+  error.value = ''
+  const params = searchParams.value
+  if (!hasAllQueryParams(params, queryFields.value)) {
+    error.value = '请填写全部查询条件后再导出'
+    return
+  }
+  exportingPdf.value = true
+  try {
+    await queryExportPdf(code.value, {
+      accessPwd: accessPwd.value || undefined,
+      params
+    })
+  } catch (e) {
+    error.value = e.message || 'PDF 导出失败'
+  } finally {
+    exportingPdf.value = false
+  }
+  if (!error.value) showToast('PDF 导出已开始')
+}
+
 function gotoPage(n) {
   router.replace({
     name: 'query-result',
@@ -531,7 +556,7 @@ onUnmounted(() => {
 <style scoped>
 .page {
   min-height: 100vh;
-  padding: 22px 16px 24px;
+  padding: 22px 16px calc(24px + env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -646,12 +671,17 @@ onUnmounted(() => {
   gap: 10px;
   flex-wrap: wrap;
   margin: -4px 0 14px;
-  padding-bottom: 12px;
+  padding: 10px 0 12px;
   border-bottom: 1px solid rgba(15,23,42,.06);
   position: sticky;
   top: 0;
   z-index: 3;
-  background: inherit;
+  background: color-mix(in srgb, #fff 94%, transparent);
+  backdrop-filter: blur(10px);
+}
+.tone-light .toolbar {
+  background: color-mix(in srgb, #0f172a 72%, transparent);
+  border-bottom-color: rgba(255,255,255,.12);
 }
 .toolbar-left, .toolbar-right { display: flex; gap: 8px; flex-wrap: wrap; }
 .btn.ghost {
@@ -873,7 +903,8 @@ tbody tr:hover { background: color-mix(in srgb, var(--theme) 5%, #fff); }
   background: color-mix(in srgb, var(--theme) 10%, #fff);
   color: var(--theme);
   border-radius: 8px;
-  padding: 4px 10px;
+  padding: 8px 12px;
+  min-height: 36px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -918,9 +949,12 @@ td.hit {
 }
 .jump input {
   width: 56px;
+  min-height: 36px;
+  height: 36px;
   padding: 6px 8px;
   border-radius: 8px;
   border: 1px solid #e2e8f0;
+  font-size: 16px;
 }
 
 .summary-strip {
@@ -948,10 +982,11 @@ td.hit {
 .empty-guide { margin: 0 0 12px; font-size: 13px; color: #64748b; line-height: 1.5; }
 
 @media print {
-  .no-print, .toolbar, .chart-box, .pager, .toast, .cond-tags button { display: none !important; }
-  .page, .result-shell { background: #fff !important; padding: 0 !important; min-height: auto !important; }
-  .card, .result-panel, .result-card { box-shadow: none !important; break-inside: avoid; }
+  .no-print, .toolbar, .chart-box, .pager, .toast, .cond-tags button, .site-footer, .ambient { display: none !important; }
+  .page, .result-shell { background: #fff !important; padding: 12mm !important; min-height: auto !important; }
+  .card, .result-panel, .result-card { box-shadow: none !important; break-inside: avoid; page-break-inside: avoid; }
   .hero { margin-bottom: 12px !important; }
-  .result-card { page-break-inside: avoid; border: 1px solid #ddd !important; }
+  .result-card { page-break-inside: avoid; border: 1px solid #ddd !important; margin-bottom: 12px !important; }
+  .card-list { gap: 10px !important; }
 }
 </style>

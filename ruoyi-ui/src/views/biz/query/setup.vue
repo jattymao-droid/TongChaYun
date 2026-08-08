@@ -1,6 +1,8 @@
 <template>
-  <div class="app-container query-setup">
-    <el-page-header @back="leave" :content="'设置向导 - ' + (queryName || '')" class="mb16" />
+  <div class="biz-page query-setup">
+    <div class="biz-page-head">
+      <el-page-header @back="leave" :content="'设置向导 - ' + (queryName || '')" />
+    </div>
 
     <el-alert
       v-if="fromTemplate && !isPublished"
@@ -20,12 +22,14 @@
       </div>
     </el-alert>
 
-    <el-steps :active="activeStep" finish-status="success" align-center class="mb20">
-      <el-step title="准备数据" description="上传 Excel，按字段合并多表" />
-      <el-step title="设置查询项" description="学生填什么、看到什么" />
-      <el-step title="打扮页面" description="成绩单样式与预览" />
-      <el-step title="发布分享" description="链接、二维码与海报" />
-    </el-steps>
+    <div class="biz-panel steps-panel mb16">
+      <el-steps :active="activeStep" finish-status="success" align-center>
+        <el-step title="准备数据" description="上传 Excel，按字段合并多表" />
+        <el-step title="设置查询项" description="学生填什么、看到什么" />
+        <el-step title="打扮页面" description="成绩单样式与预览" />
+        <el-step title="发布分享" description="链接、二维码与海报" />
+      </el-steps>
+    </div>
 
     <el-alert
       v-if="stepHint"
@@ -36,6 +40,7 @@
       class="mb16"
     />
 
+    <div class="biz-panel step-panel">
     <!-- Step 1: Import + Join -->
     <div v-show="activeStep === 0" class="step-pane">
       <div class="scenario-cards mb16">
@@ -98,8 +103,8 @@
 
     <!-- Step 4: Publish -->
     <div v-show="activeStep === 3" class="step-pane">
-      <el-card shadow="never">
-        <div slot="header">发布查询</div>
+      <div class="publish-block">
+        <div class="publish-title">发布查询</div>
         <el-descriptions :column="1" border size="small" class="mb16">
           <el-descriptions-item label="名称">{{ queryName }}</el-descriptions-item>
           <el-descriptions-item label="数据行数">{{ (queryInfo && queryInfo.rowCount) || 0 }}</el-descriptions-item>
@@ -176,10 +181,77 @@
           >{{ isPublished ? '重新发布 / 刷新链接' : '立即发布' }}</el-button>
           <el-button v-if="isPublished && queryInfo.publicCode" @click="openPublic">打开公开页</el-button>
         </div>
-      </el-card>
+
+        <div class="reach-panel mt16">
+          <div class="publish-title">开放时间与预约</div>
+          <el-form label-width="100px" size="small">
+            <el-form-item label="开始时间">
+              <el-date-picker v-model="reachForm.startTime" type="datetime" value-format="yyyy-MM-dd HH:mm:ss" placeholder="可选" style="width:100%" />
+            </el-form-item>
+            <el-form-item label="截止时间">
+              <el-date-picker v-model="reachForm.endTime" type="datetime" value-format="yyyy-MM-dd HH:mm:ss" placeholder="可选" style="width:100%" />
+            </el-form-item>
+            <el-form-item label="截止提醒">
+              <el-input-number v-model="reachForm.remindHours" :min="0" :max="168" />
+              <span class="tip">小时；0 不提醒</span>
+            </el-form-item>
+            <el-form-item label="提醒邮件" v-if="reachForm.remindHours > 0">
+              <el-switch v-model="reachForm.remindMail" active-value="1" inactive-value="0" />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" plain size="mini" :loading="reachSaving" @click="saveReachSettings">保存时间设置</el-button>
+            </el-form-item>
+          </el-form>
+        </div>
+
+        <div v-if="!isPublished" class="schedule-box mt16">
+          <div class="publish-title">预约发布</div>
+          <p class="tip-block">设定未来时间后到点自动上线（约每分钟扫描）。</p>
+          <el-date-picker
+            v-model="scheduleAt"
+            type="datetime"
+            value-format="yyyy-MM-dd HH:mm:ss"
+            placeholder="选择发布时间"
+            style="width: 220px; margin-right: 8px"
+          />
+          <el-button
+            type="warning"
+            plain
+            :loading="scheduling"
+            :disabled="!canPublish || !scheduleAt"
+            @click="doSchedule"
+            v-hasPermi="['biz:query:publish']"
+          >确认预约</el-button>
+          <el-button
+            v-if="queryInfo && queryInfo.publishAt"
+            type="text"
+            :loading="scheduling"
+            @click="doCancelSchedule"
+            v-hasPermi="['biz:query:publish']"
+          >取消预约（{{ queryInfo.publishAt }}）</el-button>
+        </div>
+        <el-alert
+          v-if="queryInfo && queryInfo.publishAt && !isPublished"
+          class="mt16"
+          type="info"
+          :closable="false"
+          show-icon
+          :title="'已预约于 ' + queryInfo.publishAt + ' 自动发布'"
+        />
+      </div>
+    </div>
     </div>
 
-    <div class="wizard-footer">
+    <el-dialog title="发送发布通知" :visible.sync="notifyOpen" width="480px" append-to-body>
+      <p class="tip-block mb8">可选：将公开链接发到邮箱（需已配置 SMTP）。</p>
+      <el-input v-model="notifyEmails" type="textarea" :rows="2" placeholder="收件邮箱，多个用逗号分隔" />
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="notifyOpen = false">跳过</el-button>
+        <el-button type="primary" :loading="notifySending" @click="doSendPublishNotify">发送</el-button>
+      </div>
+    </el-dialog>
+
+    <div class="biz-wizard-footer">
       <el-button @click="leave">返回列表</el-button>
       <div class="spacer" />
       <el-button :disabled="activeStep === 0" @click="goPrev">上一步</el-button>
@@ -192,7 +264,8 @@
 </template>
 
 <script>
-import { getQuery, publishQuery, saveQueryPage } from '@/api/biz/query'
+import { getQuery, publishQuery, saveQueryPage, updateQuery } from '@/api/biz/query'
+import { scheduleQueryPublish, cancelQuerySchedule, sendPublishNotify } from '@/api/biz/reach'
 import { toQrDataUrl, buildSharePoster, downloadDataUrl, resolvePosterBg } from '@/utils/qrcode'
 import { parseLayout } from '@/utils/bizQueryField'
 import PosterBgForm from '@/components/PosterBgForm'
@@ -216,6 +289,18 @@ export default {
       activeStep: 0,
       designTab: 'design',
       publishing: false,
+      scheduling: false,
+      scheduleAt: undefined,
+      reachSaving: false,
+      notifyOpen: false,
+      notifyEmails: '',
+      notifySending: false,
+      reachForm: {
+        startTime: undefined,
+        endTime: undefined,
+        remindHours: 24,
+        remindMail: '0'
+      },
       nextLoading: false,
       publishedLink: '',
       h5Link: '',
@@ -345,6 +430,12 @@ export default {
         this.datasetCount = (data.datasets || []).length
         this.applyFields(data.fields)
         this.applyPagePoster(data.page)
+        this.reachForm = {
+          startTime: this.queryInfo.startTime,
+          endTime: this.queryInfo.endTime,
+          remindHours: this.queryInfo.remindHours == null ? 24 : this.queryInfo.remindHours,
+          remindMail: this.queryInfo.remindMail || '0'
+        }
         document.title = '设置向导 - ' + (this.queryName || '')
       })
     },
@@ -487,15 +578,78 @@ export default {
         this.publishing = true
         return publishQuery(this.queryId)
       }).then(res => {
-        const code = (res.data && res.data.publicCode) || ''
-        const path = (res.data && res.data.path) || ('/q/' + code)
+        const data = res.data || {}
+        if (data.pending) {
+          this.$modal.msgSuccess(data.message || '已提交发布审批')
+          this.refreshMeta()
+          return
+        }
+        const code = data.publicCode || ''
+        const path = data.path || ('/q/' + code)
         this.$modal.msgSuccess('发布成功')
         this.fromTemplate = false
         this.activeStep = 3
         this.syncStepQuery()
         this.fillPublishLinks(code || path.replace(/^\/q\//, ''))
         this.refreshMeta()
+        this.openPublishNotifyDialog()
       }).catch(() => {}).finally(() => { this.publishing = false })
+    },
+    saveReachSettings() {
+      this.reachSaving = true
+      updateQuery({
+        queryId: this.queryId,
+        startTime: this.reachForm.startTime || undefined,
+        endTime: this.reachForm.endTime || undefined,
+        remindHours: this.reachForm.remindHours,
+        remindMail: this.reachForm.remindMail
+      }).then(() => {
+        this.$modal.msgSuccess('已保存')
+        this.refreshMeta()
+      }).catch(() => {}).finally(() => { this.reachSaving = false })
+    },
+    doSchedule() {
+      if (!this.scheduleAt) {
+        this.$modal.msgWarning('请选择预约发布时间')
+        return
+      }
+      this.scheduling = true
+      scheduleQueryPublish(this.queryId, this.scheduleAt).then(res => {
+        const code = (res.data && res.data.publicCode) || ''
+        this.$modal.msgSuccess('已预约发布')
+        if (code) this.fillPublishLinks(code)
+        this.refreshMeta()
+      }).catch(() => {}).finally(() => { this.scheduling = false })
+    },
+    doCancelSchedule() {
+      this.$modal.confirm('确定取消预约发布？').then(() => {
+        this.scheduling = true
+        return cancelQuerySchedule(this.queryId)
+      }).then(() => {
+        this.$modal.msgSuccess('已取消预约')
+        this.refreshMeta()
+      }).catch(() => {}).finally(() => { this.scheduling = false })
+    },
+    openPublishNotifyDialog() {
+      const u = this.$store.getters.email || (this.$store.state.user && this.$store.state.user.email) || ''
+      this.notifyEmails = u || ''
+      this.notifyOpen = true
+    },
+    doSendPublishNotify() {
+      if (!this.notifyEmails) {
+        this.$modal.msgWarning('请填写收件邮箱')
+        return
+      }
+      this.notifySending = true
+      sendPublishNotify({
+        type: 'query',
+        projectId: this.queryId,
+        emails: this.notifyEmails,
+        link: this.h5Link || this.publishedLink
+      }).then(() => {
+        this.$modal.msgSuccess('通知已发送')
+        this.notifyOpen = false
+      }).catch(() => {}).finally(() => { this.notifySending = false })
     },
     jumpPreview() {
       this.activeStep = 2
@@ -550,6 +704,27 @@ export default {
 .mb16 { margin-bottom: 16px; }
 .mb20 { margin-bottom: 20px; }
 .mt16 { margin-top: 16px; }
+.query-setup >>> .el-page-header__content {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--biz-ink);
+}
+.steps-panel { padding-top: 20px; padding-bottom: 8px; }
+.step-panel { min-height: 280px; }
+.publish-title {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--biz-ink);
+}
+.reach-panel, .schedule-box {
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--biz-bg-soft, #f5f7fb);
+}
+.tip { margin-left: 8px; color: var(--biz-muted-soft); font-size: 12px; }
+.tip-block { margin: 0 0 10px; color: var(--biz-muted-soft); font-size: 12px; line-height: 1.5; }
+.mb8 { margin-bottom: 8px; }
 .tpl-ready-title {
   display: flex;
   align-items: center;
@@ -560,46 +735,36 @@ export default {
 }
 .tpl-ready-actions { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .card-head { display: flex; align-items: center; justify-content: space-between; }
-.desc { color: #606266; font-size: 13px; line-height: 1.6; margin: 0 0 14px; }
-.stat-row { margin-top: 12px; display: flex; gap: 16px; color: #606266; font-size: 13px; }
+.desc { color: var(--biz-muted); font-size: 13px; line-height: 1.6; margin: 0 0 14px; }
+.stat-row { margin-top: 12px; display: flex; gap: 16px; color: var(--biz-muted); font-size: 13px; }
 .stat-row .fail { color: #f56c6c; }
 .checklist { display: grid; gap: 8px; }
 .check-item {
   display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px; border-radius: 8px; background: #fafafa;
-  color: #909399; font-size: 13px;
+  padding: 8px 12px; border-radius: 8px; background: var(--biz-bg-soft);
+  color: var(--biz-muted-soft); font-size: 13px;
 }
 .check-item.ok { background: #f0f9eb; color: #67c23a; }
-.wizard-footer {
-  position: sticky;
-  bottom: 0;
-  z-index: 5;
-  margin-top: 20px;
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(255,255,255,.96);
-  border-top: 1px solid #ebeef5;
-  box-shadow: 0 -4px 16px rgba(15,23,42,.04);
-}
-.wizard-footer .spacer { flex: 1; }
+.biz-wizard-footer .spacer { flex: 1; }
 .qr-box { text-align: center; padding: 8px 0 4px; }
 .qr-box img { width: 180px; height: 180px; }
-.link-label { margin: 12px 0 4px; color: #909399; font-size: 12px; text-align: left; }
+.link-label { margin: 12px 0 4px; color: var(--biz-muted-soft); font-size: 12px; text-align: left; }
 .qr-box .link { word-break: break-all; color: #666; font-size: 13px; margin: 0 0 8px; text-align: left; }
 .design-tabs >>> .el-tabs__header { margin-bottom: 12px; }
-.step-pane { min-height: 280px; }
+.step-pane { min-height: 240px; }
 
 .scenario-cards { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:10px; }
 .scenario {
-  border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 14px; cursor: pointer;
+  border: 1px solid var(--biz-line); border-radius: var(--biz-radius-sm); padding: 12px 14px; cursor: pointer;
   background: #fff; transition: border-color .15s, box-shadow .15s;
 }
-.scenario:hover { border-color: #93c5fd; box-shadow: 0 4px 14px rgba(22,119,255,.08); }
-.scenario strong { display:block; margin-bottom: 4px; color:#0f172a; }
-.scenario span { font-size:12px; color:#64748b; line-height:1.4; }
-.check-item.tip:not(.ok) { color:#64748b; }
+.scenario:hover {
+  border-color: var(--biz-accent-hover);
+  box-shadow: 0 4px 14px rgba(29, 78, 216, 0.08);
+}
+.scenario strong { display:block; margin-bottom: 4px; color: var(--biz-ink); }
+.scenario span { font-size:12px; color: var(--biz-muted); line-height:1.4; }
+.check-item.tip:not(.ok) { color: var(--biz-muted); }
 .poster-img { width: 240px; max-width: 100%; border-radius: 12px; box-shadow: 0 8px 24px rgba(15,23,42,.12); }
 .poster-actions { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin: 12px 0; }
 .poster-bg-panel { max-width: 420px; margin: 12px auto 0; text-align: left; }

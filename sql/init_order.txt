@@ -1,0 +1,38 @@
+# PostgreSQL init order (files under sql/)
+# 1) framework
+ry_postgresql.sql
+quartz_postgresql.sql
+# 2) business base
+biz_postgresql.sql
+# 3) incremental patches
+biz_phase4.sql
+biz_phase7.sql
+biz_phase9.sql
+biz_phase10.sql
+biz_phase12.sql
+biz_phase13.sql
+biz_phase18.sql
+biz_phase18_scope.sql
+biz_phase19.sql
+biz_phase21.sql
+biz_phase22.sql
+biz_phase23_join.sql
+biz_phase24_query_security.sql
+biz_phase25_query_p2.sql
+biz_phase26_user_admin.sql
+biz_phase27_basic_settings.sql
+biz_survey_question_types.sql
+biz_survey_question_types_extra.sql
+biz_survey_page_break.sql
+biz_survey_matrix_radio.sql
+biz_survey_agreement_signature.sql
+biz_survey_answer_item_snapshot.sql
+biz_survey_admin.sql
+biz_oauth_bind.sql
+biz_mail_reset_password.sql
+biz_sidebar_menu.sql
+biz_register_role.sql
+biz_rename_tongchayun.sql
+biz_phase28_reach.sql
+biz_phase29_version.sql
+biz_phase30_risk.sql

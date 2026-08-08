@@ -16,4 +16,16 @@ public interface BizAccessLogMapper
         @Param("targetId") Long targetId,
         @Param("action") String action,
         @Param("limit") int limit);
+
+    Long countDistinctIpByTarget(@Param("targetType") String targetType,
+        @Param("targetId") Long targetId,
+        @Param("action") String action);
+
+    java.util.List<java.util.Map<String, Object>> selectFunnel(@Param("targetType") String targetType,
+        @Param("targetId") Long targetId,
+        @Param("actions") java.util.List<String> actions);
+
+    java.util.List<java.util.Map<String, Object>> selectChannelUv(@Param("targetType") String targetType,
+        @Param("targetId") Long targetId,
+        @Param("action") String action);
 }

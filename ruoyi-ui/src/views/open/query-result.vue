@@ -56,7 +56,15 @@
             icon="el-icon-printer"
             :disabled="!rows.length"
             @click="handlePrint"
-          >打印 / PDF</el-button>
+          >打印</el-button>
+          <el-button
+            v-if="layout.resultShowExport"
+            size="small"
+            class="anim-btn theme-outline"
+            :loading="exportingPdf"
+            :disabled="!rows.length"
+            @click="handleExportPdf"
+          >导出 PDF</el-button>
           <el-button
             v-if="layout.resultShowExport"
             size="small"
@@ -171,7 +179,7 @@
 
 <script>
 import * as echarts from 'echarts'
-import { openQueryMeta, openQuerySearch, openQueryExport, openQueryFieldDist } from '@/api/biz/query'
+import { openQueryMeta, openQuerySearch, openQueryExport, openQueryExportPdf, openQueryFieldDist } from '@/api/biz/query'
 import '@/assets/styles/biz-open-motion.css'
 import { saveAs } from 'file-saver'
 import { blobValidate } from '@/utils/ruoyi'
@@ -202,6 +210,7 @@ export default {
       metaLoading: false,
       loading: false,
       exporting: false,
+      exportingPdf: false,
       queryName: '',
       page: {},
       layout: parseLayout(null),
@@ -499,6 +508,25 @@ export default {
           this.$message.error('导出失败')
         }
       }).finally(() => { this.exporting = false })
+    },
+    handleExportPdf() {
+      const params = this.searchParams
+      if (!hasAllQueryParams(params, this.queryFields)) {
+        this.$message.warning('请完善查询条件后再导出')
+        return
+      }
+      this.exportingPdf = true
+      openQueryExportPdf(this.code, {
+        accessPwd: this.accessPwd || undefined,
+        params
+      }).then(async data => {
+        const ok = await blobValidate(data)
+        if (ok) {
+          saveAs(data, (this.page.title || this.queryName || 'query') + '.pdf')
+        } else {
+          this.$message.error('PDF 导出失败')
+        }
+      }).finally(() => { this.exportingPdf = false })
     }
   }
 }
@@ -754,8 +782,9 @@ export default {
 
 .toolbar-right { display: inline-flex; gap: 8px; flex-wrap: wrap; }
 @media print {
-  .no-print { display: none !important; }
-  .open-query, .result-shell { background: #fff !important; padding: 0 !important; }
-  .panel, .result-card { box-shadow: none !important; page-break-inside: avoid; }
+  .no-print, .toolbar, .chart-box, .pager { display: none !important; }
+  .open-query, .result-shell { background: #fff !important; padding: 12mm !important; }
+  .panel, .result-card { box-shadow: none !important; page-break-inside: avoid; border: 1px solid #ddd !important; }
+  .result-card { margin-bottom: 12px !important; }
 }
 </style>

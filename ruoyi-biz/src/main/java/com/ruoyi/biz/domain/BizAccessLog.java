@@ -12,6 +12,7 @@ public class BizAccessLog
     private String clientIp;
     private String userAgent;
     private String detailJson;
+    private String channelCode;
     private Date createTime;
 
     public Long getLogId() { return logId; }
@@ -30,6 +31,8 @@ public class BizAccessLog
     public void setUserAgent(String userAgent) { this.userAgent = userAgent; }
     public String getDetailJson() { return detailJson; }
     public void setDetailJson(String detailJson) { this.detailJson = detailJson; }
+    public String getChannelCode() { return channelCode; }
+    public void setChannelCode(String channelCode) { this.channelCode = channelCode; }
     public Date getCreateTime() { return createTime; }
     public void setCreateTime(Date createTime) { this.createTime = createTime; }
 }

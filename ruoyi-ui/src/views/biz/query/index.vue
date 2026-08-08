@@ -31,6 +31,7 @@
     <el-row :gutter="10" class="mb8 toolbar-row">
       <el-col :span="1.5">
         <el-button type="primary" plain icon="el-icon-plus" size="mini" @click="handleAdd" v-hasPermi="['biz:query:add']">新增</el-button>
+        <el-button type="warning" plain icon="el-icon-s-check" size="mini" @click="openApproveList" v-hasRole="['admin']">发布审批</el-button>
       </el-col>
       <el-col :span="1.5">
         <el-button type="success" plain icon="el-icon-document" size="mini" @click="openTemplateDialog" v-hasPermi="['biz:query:add']">从模板创建</el-button>
@@ -100,7 +101,8 @@
                 </el-button>
                 <el-dropdown-menu slot="dropdown">
                   <el-dropdown-item command="upload" icon="el-icon-upload2" v-hasPermi="['biz:query:edit']">上传</el-dropdown-item>
-                  <el-dropdown-item command="export" icon="el-icon-download" v-hasPermi="['biz:query:query']">导出</el-dropdown-item>
+                  <el-dropdown-item command="export" icon="el-icon-download" v-hasPermi="['biz:query:query']">导出 Excel</el-dropdown-item>
+                  <el-dropdown-item command="exportPdf" icon="el-icon-document" v-hasPermi="['biz:query:query']">导出 PDF</el-dropdown-item>
                   <el-dropdown-item command="fields" icon="el-icon-setting" v-hasPermi="['biz:query:edit']">字段</el-dropdown-item>
                   <el-dropdown-item command="preview" icon="el-icon-view" v-hasPermi="['biz:query:query']">预览</el-dropdown-item>
                   <el-dropdown-item command="design" icon="el-icon-magic-stick" v-hasPermi="['biz:query:edit']">设计</el-dropdown-item>
@@ -110,6 +112,8 @@
                   <el-dropdown-item v-if="row.publicCode" command="link" icon="el-icon-link">链接</el-dropdown-item>
                   <el-dropdown-item command="audit" icon="el-icon-document" v-hasPermi="['biz:query:query']">访问审计</el-dropdown-item>
                   <el-dropdown-item command="edit" icon="el-icon-edit" v-hasPermi="['biz:query:edit']">编辑</el-dropdown-item>
+                  <el-dropdown-item command="admins" icon="el-icon-user" v-hasPermi="['biz:query:edit']">协作者</el-dropdown-item>
+                  <el-dropdown-item command="revisions" icon="el-icon-time" v-hasPermi="['biz:query:query']">数据版本</el-dropdown-item>
                   <el-dropdown-item command="transfer" icon="el-icon-sort" v-hasPermi="['biz:user:transfer']">转让归属</el-dropdown-item>
                   <el-dropdown-item command="delete" icon="el-icon-delete" divided v-hasPermi="['biz:query:remove']">删除</el-dropdown-item>
                 </el-dropdown-menu>
@@ -286,11 +290,63 @@
         <el-button @click="transferOpen = false">取 消</el-button>
       </div>
     </el-dialog>
+
+    <el-dialog :title="'协作者 - ' + ((adminRow && adminRow.queryName) || '')" :visible.sync="adminOpen" width="560px" append-to-body>
+      <div class="admin-add">
+        <el-select v-model="adminUserId" filterable remote clearable placeholder="搜索用户" :remote-method="searchAdminUsers" :loading="adminSearching" style="width:70%">
+          <el-option v-for="u in adminUsers" :key="u.userId" :label="(u.nickName || u.userName) + ' (' + u.userName + ')'" :value="u.userId" />
+        </el-select>
+        <el-button type="primary" size="mini" :loading="adminAdding" :disabled="!adminUserId" @click="submitAddAdmin">添加</el-button>
+      </div>
+      <el-table :data="adminList" size="mini" border class="mt12" v-loading="adminLoading">
+        <el-table-column label="账号" prop="userName" />
+        <el-table-column label="昵称" prop="nickName" />
+        <el-table-column label="操作" width="80" align="center">
+          <template slot-scope="scope">
+            <el-button type="text" style="color:#f56c6c" @click="removeAdmin(scope.row)">移除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div slot="footer"><el-button @click="adminOpen = false">关 闭</el-button></div>
+    </el-dialog>
+
+    <el-dialog :title="'数据版本 - ' + ((revRow && revRow.queryName) || '')" :visible.sync="revOpen" width="640px" append-to-body>
+      <el-table :data="revList" size="mini" border v-loading="revLoading">
+        <el-table-column label="版本" prop="revNo" width="70" align="center" />
+        <el-table-column label="行数" prop="rowCount" width="80" align="center" />
+        <el-table-column label="说明" prop="remark" min-width="120" show-overflow-tooltip />
+        <el-table-column label="操作人" prop="createBy" width="100" />
+        <el-table-column label="时间" prop="createTime" width="160" />
+        <el-table-column label="操作" width="90" align="center">
+          <template slot-scope="scope">
+            <el-button type="text" @click="doRollback(scope.row)">回滚</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div slot="footer"><el-button @click="revOpen = false">关 闭</el-button></div>
+    </el-dialog>
+
+    <el-dialog title="发布审批" :visible.sync="approveOpen" width="720px" append-to-body>
+      <el-table :data="approveList" size="mini" border v-loading="approveLoading">
+        <el-table-column label="类型" prop="projectType" width="80" />
+        <el-table-column label="名称" prop="projectName" min-width="140" />
+        <el-table-column label="申请人" prop="applyBy" width="100" />
+        <el-table-column label="时间" prop="applyTime" width="160" />
+        <el-table-column label="操作" width="160" align="center">
+          <template slot-scope="scope">
+            <el-button type="text" @click="doApprove(scope.row)">通过</el-button>
+            <el-button type="text" style="color:#f56c6c" @click="doReject(scope.row)">驳回</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div slot="footer"><el-button @click="approveOpen = false">关 闭</el-button></div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import { listQuery, getQuery, addQuery, updateQuery, delQuery, uploadQueryExcel, publishQuery, offlineQuery, exportQuery, copyQuery, listQueryTemplates, createQueryFromTemplate, listQueryAccessLogs, transferQuery, saveQueryPage } from '@/api/biz/query'
+import { listQuery, getQuery, addQuery, updateQuery, delQuery, uploadQueryExcel, publishQuery, offlineQuery, exportQuery, exportQueryPdf, copyQuery, listQueryTemplates, createQueryFromTemplate, listQueryAccessLogs, transferQuery, saveQueryPage, listQueryAdmins, searchQueryAdminUsers, addQueryAdmin, removeQueryAdmin } from '@/api/biz/query'
+import { listQueryRevisions, rollbackQueryRevision, listPublishRequests, approvePublishRequest, rejectPublishRequest } from '@/api/biz/version'
 import { listUser } from '@/api/system/user'
 import { toQrDataUrl, buildSharePoster, downloadDataUrl, resolvePosterBg } from '@/utils/qrcode'
 import { parseLayout } from '@/utils/bizQueryField'
@@ -344,6 +400,21 @@ export default {
       auditQueryName: '',
       auditAction: 'search',
       auditLogs: [],
+      adminOpen: false,
+      adminLoading: false,
+      adminAdding: false,
+      adminSearching: false,
+      adminRow: null,
+      adminList: [],
+      adminUsers: [],
+      adminUserId: null,
+      revOpen: false,
+      revLoading: false,
+      revRow: null,
+      revList: [],
+      approveOpen: false,
+      approveLoading: false,
+      approveList: [],
       queryParams: { pageNum: 1, pageSize: 12, queryName: undefined, status: undefined, createUserId: undefined, createBy: undefined },
       ownerFilterLabel: '',
       transferOpen: false,
@@ -451,6 +522,7 @@ export default {
       const map = {
         upload: this.handleUpload,
         export: this.handleExport,
+        exportPdf: this.handleExportPdf,
         fields: this.goFields,
         preview: this.goPreview,
         design: this.goPage,
@@ -460,6 +532,8 @@ export default {
         link: this.handleQr,
         audit: this.handleAudit,
         edit: this.handleUpdate,
+        admins: this.openAdmins,
+        revisions: this.openRevisions,
         transfer: this.openTransfer,
         delete: this.handleDelete
       }
@@ -508,10 +582,10 @@ export default {
     tplCardStyle(tpl) {
       const themes = {
         score_lookup: { accent: '#1677ff', cover: 'linear-gradient(135deg, #dbeafe 0%, #eff6ff 45%, #ffffff 100%)' },
-        class_assign: { accent: '#2b6de5', cover: 'linear-gradient(135deg, #dbe4ff 0%, #eef2ff 45%, #ffffff 100%)' },
+        class_assign: { accent: '#1d4ed8', cover: 'linear-gradient(135deg, #dbe4ff 0%, #eef2ff 45%, #ffffff 100%)' },
         staff_dir: { accent: '#0f766e', cover: 'linear-gradient(135deg, #ccfbf1 0%, #ecfdf5 45%, #ffffff 100%)' }
       }
-      const t = themes[(tpl && tpl.key) || ''] || { accent: '#2b6de5', cover: 'linear-gradient(135deg, #e8f0fe 0%, #ffffff 72%)' }
+      const t = themes[(tpl && tpl.key) || ''] || { accent: '#1d4ed8', cover: 'linear-gradient(135deg, #eff6ff 0%, #ffffff 72%)' }
       return { '--tpl-accent': t.accent, '--tpl-cover': t.cover }
     },
     applyTemplate(tpl) {
@@ -621,6 +695,18 @@ export default {
         }
       }).catch(() => {})
     },
+    handleExportPdf(row) {
+      this.$modal.confirm('确认导出成绩单 PDF（每人一页）？').then(() => {
+        return exportQueryPdf(row.queryId)
+      }).then(async data => {
+        const isBlob = blobValidate(data)
+        if (isBlob) {
+          saveAs(new Blob([data]), (row.queryName || 'query') + '.pdf')
+        } else {
+          this.$modal.msgError('PDF 导出失败')
+        }
+      }).catch(() => {})
+    },
     pollParse(queryId, tries = 0) {
       if (tries > 60) return
       setTimeout(() => {
@@ -667,7 +753,13 @@ export default {
     goPage(row) { this.$router.push('/biz/query-page/index/' + row.queryId) },
     handlePublish(row) {
       this.$modal.confirm('确认发布该查询并生成链接？').then(() => publishQuery(row.queryId)).then(res => {
-        const code = (res.data && res.data.publicCode) || row.publicCode
+        const data = res.data || {}
+        if (data.pending) {
+          this.$modal.msgSuccess(data.message || '已提交发布审批')
+          this.getList()
+          return
+        }
+        const code = data.publicCode || row.publicCode
         this.$modal.msgSuccess('发布成功')
         this.getList()
         if (code) this.handleQr({ ...row, publicCode: code })
@@ -686,6 +778,77 @@ export default {
       this.auditAction = 'search'
       this.auditOpen = true
       this.loadAuditLogs()
+    },
+    openAdmins(row) {
+      this.adminRow = row
+      this.adminUserId = null
+      this.adminUsers = []
+      this.adminOpen = true
+      this.loadAdmins()
+    },
+    loadAdmins() {
+      if (!this.adminRow) return
+      this.adminLoading = true
+      listQueryAdmins(this.adminRow.queryId).then(res => {
+        this.adminList = res.data || []
+      }).finally(() => { this.adminLoading = false })
+    },
+    searchAdminUsers(q) {
+      this.adminSearching = true
+      searchQueryAdminUsers(q || '').then(res => {
+        this.adminUsers = res.data || []
+      }).finally(() => { this.adminSearching = false })
+    },
+    submitAddAdmin() {
+      if (!this.adminRow || !this.adminUserId) return
+      this.adminAdding = true
+      addQueryAdmin(this.adminRow.queryId, { userId: this.adminUserId }).then(() => {
+        this.$modal.msgSuccess('已添加')
+        this.adminUserId = null
+        this.loadAdmins()
+      }).finally(() => { this.adminAdding = false })
+    },
+    removeAdmin(row) {
+      this.$modal.confirm('确认移除协作者？').then(() => removeQueryAdmin(this.adminRow.queryId, row.userId)).then(() => {
+        this.$modal.msgSuccess('已移除')
+        this.loadAdmins()
+      }).catch(() => {})
+    },
+    openRevisions(row) {
+      this.revRow = row
+      this.revOpen = true
+      this.revLoading = true
+      listQueryRevisions(row.queryId).then(res => {
+        this.revList = res.data || []
+      }).finally(() => { this.revLoading = false })
+    },
+    doRollback(row) {
+      this.$modal.confirm('确认回滚到版本 #' + row.revNo + '？当前数据会先自动快照。').then(() => {
+        return rollbackQueryRevision(this.revRow.queryId, row.revId)
+      }).then(() => {
+        this.$modal.msgSuccess('已回滚')
+        this.openRevisions(this.revRow)
+        this.getList()
+      }).catch(() => {})
+    },
+    openApproveList() {
+      this.approveOpen = true
+      this.approveLoading = true
+      listPublishRequests({ status: '0' }).then(res => {
+        this.approveList = res.rows || res.data || []
+      }).finally(() => { this.approveLoading = false })
+    },
+    doApprove(row) {
+      approvePublishRequest(row.requestId).then(() => {
+        this.$modal.msgSuccess('已通过并发布')
+        this.openApproveList()
+      }).catch(() => {})
+    },
+    doReject(row) {
+      this.$prompt('驳回原因', '驳回').then(({ value }) => rejectPublishRequest(row.requestId, value || '驳回')).then(() => {
+        this.$modal.msgSuccess('已驳回')
+        this.openApproveList()
+      }).catch(() => {})
     },
     loadAuditLogs() {
       if (!this.auditQueryId) return

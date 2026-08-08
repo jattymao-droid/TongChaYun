@@ -44,6 +44,10 @@ export function updateSurveyAnswer(answerId, data) {
   return request({ url: '/biz/survey/answer/' + answerId, method: 'put', data: data || {} })
 }
 
+export function batchUpdateSurveyAnswers(data) {
+  return request({ url: '/biz/survey/answers/batch', method: 'put', data: data || {} })
+}
+
 export function getSurveyStats(surveyId) {
   return request({ url: '/biz/survey/stats/' + surveyId, method: 'get' })
 }
@@ -64,11 +68,23 @@ export function getSurveyCrossStats(surveyId, q1, q2) {
   })
 }
 
-export function openSurveyMeta(code, accessPwd) {
+export function openSurveyMeta(code, accessPwd, channel) {
+  const params = {}
+  if (accessPwd) params.accessPwd = accessPwd
+  if (channel) params.channel = channel
   return request({
     url: '/open/survey/' + code + '/meta',
     method: 'get',
-    params: accessPwd ? { accessPwd } : {},
+    params,
+    headers: { isToken: false }
+  })
+}
+
+export function openSurveyEvent(code, data) {
+  return request({
+    url: '/open/survey/' + code + '/event',
+    method: 'post',
+    data: data || {},
     headers: { isToken: false }
   })
 }
@@ -135,5 +151,29 @@ export function createSurveyFromTemplate(key) {
 
 export function transferSurvey(surveyId, targetUserId) {
   return request({ url: '/biz/survey/' + surveyId + '/transfer/' + targetUserId, method: 'put' })
+}
+
+export function listSurveyAdmins(surveyId) {
+  return request({ url: '/biz/survey/' + surveyId + '/admins', method: 'get' })
+}
+
+export function searchSurveyAdminUsers(keyword) {
+  return request({ url: '/biz/survey/user-search', method: 'get', params: { keyword } })
+}
+
+export function addSurveyAdmin(surveyId, data) {
+  return request({ url: '/biz/survey/' + surveyId + '/admins', method: 'post', data: data || {} })
+}
+
+export function removeSurveyAdmin(surveyId, userId) {
+  return request({ url: '/biz/survey/' + surveyId + '/admins/' + userId, method: 'delete' })
+}
+
+export function addSurveyBlacklist(surveyId, data) {
+  return request({ url: '/biz/risk/survey/' + surveyId + '/blacklist', method: 'post', data: data || {} })
+}
+
+export function removeSurveyBlacklist(surveyId, id) {
+  return request({ url: '/biz/risk/survey/' + surveyId + '/blacklist/' + id, method: 'delete' })
 }
 

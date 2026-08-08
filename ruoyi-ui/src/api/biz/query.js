@@ -41,6 +41,14 @@ export function exportQuery(queryId) {
   })
 }
 
+export function exportQueryPdf(queryId) {
+  return request({
+    url: '/biz/query/exportPdf/' + queryId,
+    method: 'post',
+    responseType: 'blob'
+  })
+}
+
 export function saveQueryFields(queryId, fields) {
   return request({ url: '/biz/query/fields/' + queryId, method: 'put', data: fields })
 }
@@ -93,6 +101,16 @@ export function queryFieldDist(queryId, fieldKey) {
 export function openQueryExport(code, data) {
   return request({
     url: '/open/query/' + code + '/export',
+    method: 'post',
+    data,
+    responseType: 'blob',
+    headers: { isToken: false }
+  })
+}
+
+export function openQueryExportPdf(code, data) {
+  return request({
+    url: '/open/query/' + code + '/exportPdf',
     method: 'post',
     data,
     responseType: 'blob',
@@ -161,5 +179,21 @@ export function listQueryAccessLogs(queryId, params) {
 
 export function transferQuery(queryId, targetUserId) {
   return request({ url: '/biz/query/' + queryId + '/transfer/' + targetUserId, method: 'put' })
+}
+
+export function listQueryAdmins(queryId) {
+  return request({ url: '/biz/query/' + queryId + '/admins', method: 'get' })
+}
+
+export function searchQueryAdminUsers(keyword) {
+  return request({ url: '/biz/query/user-search', method: 'get', params: { keyword } })
+}
+
+export function addQueryAdmin(queryId, data) {
+  return request({ url: '/biz/query/' + queryId + '/admins', method: 'post', data })
+}
+
+export function removeQueryAdmin(queryId, userId) {
+  return request({ url: '/biz/query/' + queryId + '/admins/' + userId, method: 'delete' })
 }
 

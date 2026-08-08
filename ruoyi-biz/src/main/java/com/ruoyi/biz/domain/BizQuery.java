@@ -1,5 +1,7 @@
 package com.ruoyi.biz.domain;
 
+import java.util.Date;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.ruoyi.common.core.domain.BaseEntity;
 
 /**
@@ -13,7 +15,7 @@ public class BizQuery extends BaseEntity
     private String queryName;
     private String queryDesc;
     private String publicCode;
-    /** 0 draft 1 published 2 offline */
+    /** 0 draft 1 published 2 offline 3 ended */
     private String status;
     private String sourceFile;
     private String sheetName;
@@ -35,6 +37,15 @@ public class BizQuery extends BaseEntity
     private String ownerName;
     /** Display only: creator nickname (joined) */
     private String ownerNickName;
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private Date startTime;
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private Date endTime;
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private Date publishAt;
+    private Integer remindHours;
+    private String remindSent;
+    private String remindMail;
 
     public Long getQueryId() { return queryId; }
     public void setQueryId(Long queryId) { this.queryId = queryId; }
@@ -74,4 +85,16 @@ public class BizQuery extends BaseEntity
     public void setOwnerName(String ownerName) { this.ownerName = ownerName; }
     public String getOwnerNickName() { return ownerNickName; }
     public void setOwnerNickName(String ownerNickName) { this.ownerNickName = ownerNickName; }
+    public Date getStartTime() { return startTime; }
+    public void setStartTime(Date startTime) { this.startTime = startTime; }
+    public Date getEndTime() { return endTime; }
+    public void setEndTime(Date endTime) { this.endTime = endTime; }
+    public Date getPublishAt() { return publishAt; }
+    public void setPublishAt(Date publishAt) { this.publishAt = publishAt; }
+    public Integer getRemindHours() { return remindHours; }
+    public void setRemindHours(Integer remindHours) { this.remindHours = remindHours; }
+    public String getRemindSent() { return remindSent; }
+    public void setRemindSent(String remindSent) { this.remindSent = remindSent; }
+    public String getRemindMail() { return remindMail; }
+    public void setRemindMail(String remindMail) { this.remindMail = remindMail; }
 }

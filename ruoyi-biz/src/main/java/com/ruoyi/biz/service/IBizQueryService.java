@@ -43,7 +43,12 @@ public interface IBizQueryService
     void openExport(String code, Map<String, Object> params, String accessPwd, HttpServletResponse response,
         String captchaCode, String captchaUuid) throws Exception;
 
+    void openExportPdf(String code, Map<String, Object> params, String accessPwd, HttpServletResponse response,
+        String captchaCode, String captchaUuid) throws Exception;
+
     void exportRows(Long queryId, HttpServletResponse response) throws Exception;
+
+    void exportRowsPdf(Long queryId, HttpServletResponse response) throws Exception;
 
     Map<String, Object> previewMeta(Long queryId);
 
@@ -88,5 +93,13 @@ public interface IBizQueryService
 
     /** Admin: reassign project owner */
     int transferOwnership(Long queryId, Long targetUserId);
+
+    List<com.ruoyi.biz.domain.BizQueryAdmin> listQueryAdmins(Long queryId);
+
+    List<Map<String, Object>> searchUsersForAdmin(String keyword);
+
+    int addQueryAdmin(Long queryId, Long userId, String keyword);
+
+    int removeQueryAdmin(Long queryId, Long userId);
 }
 

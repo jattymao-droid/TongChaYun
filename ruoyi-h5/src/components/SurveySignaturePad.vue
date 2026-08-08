@@ -75,17 +75,38 @@ function resizeCanvas() {
   const w = parent ? parent.clientWidth : 320
   const h = props.padHeight || 160
   const ratio = window.devicePixelRatio || 1
-  canvas.width = Math.floor(w * ratio)
-  canvas.height = Math.floor(h * ratio)
+  const nextW = Math.floor(w * ratio)
+  const nextH = Math.floor(h * ratio)
+  let snapshot = null
+  if (hasInk.value && canvas.width > 0 && canvas.height > 0) {
+    try {
+      const tmp = document.createElement('canvas')
+      tmp.width = canvas.width
+      tmp.height = canvas.height
+      tmp.getContext('2d').drawImage(canvas, 0, 0)
+      snapshot = tmp
+    } catch (e) {
+      snapshot = null
+    }
+  }
+  canvas.width = nextW
+  canvas.height = nextH
   canvas.style.width = w + 'px'
   canvas.style.height = h + 'px'
   const ctx = canvas.getContext('2d')
+  ctx.setTransform(1, 0, 0, 1, 0, 0)
+  ctx.clearRect(0, 0, nextW, nextH)
+  if (snapshot) {
+    ctx.drawImage(snapshot, 0, 0, nextW, nextH)
+    hasInk.value = true
+  } else {
+    hasInk.value = false
+  }
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
   ctx.strokeStyle = props.penColor
   ctx.lineWidth = 2.2
-  hasInk.value = false
 }
 
 function pos(e) {

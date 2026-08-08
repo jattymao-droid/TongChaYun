@@ -29,13 +29,20 @@
         <result property="remark" column="remark"/>
         <result property="ownerName" column="owner_name"/>
         <result property="ownerNickName" column="owner_nick_name"/>
+        <result property="publishAt" column="publish_at"/>
+        <result property="mailNotify" column="mail_notify"/>
+        <result property="mailNotifyTo" column="mail_notify_to"/>
+        <result property="remindHours" column="remind_hours"/>
+        <result property="remindSent" column="remind_sent"/>
+        <result property="remindMail" column="remind_mail"/>
     </resultMap>
 
     <sql id="selectVo">
         select survey_id, survey_name, survey_desc, public_code, status, start_time, end_time,
                max_answers, allow_multi, access_pwd, theme_json, webhook_url, daily_limit, need_captcha, webhook_secret, view_count, answer_count, create_user_id, dept_id,
                create_by, create_time, update_by, update_time, remark,
-               null::varchar as owner_name, null::varchar as owner_nick_name
+               null::varchar as owner_name, null::varchar as owner_nick_name,
+               publish_at, mail_notify, mail_notify_to, remind_hours, remind_sent, remind_mail
         from biz_survey
     </sql>
 
@@ -44,7 +51,8 @@
                s.max_answers, s.allow_multi, s.access_pwd, s.theme_json, s.webhook_url, s.daily_limit, s.need_captcha, s.webhook_secret,
                s.view_count, s.answer_count, s.create_user_id, s.dept_id,
                s.create_by, s.create_time, s.update_by, s.update_time, s.remark,
-               u.user_name as owner_name, u.nick_name as owner_nick_name
+               u.user_name as owner_name, u.nick_name as owner_nick_name,
+               s.publish_at, s.mail_notify, s.mail_notify_to, s.remind_hours, s.remind_sent, s.remind_mail
         from biz_survey s
         left join sys_user u on u.user_id = s.create_user_id
     </sql>
@@ -71,7 +79,16 @@
             <if test="createBy != null and createBy != ''">and (s.create_by like concat('%', #{createBy}, '%') or u.user_name like concat('%', #{createBy}, '%') or u.nick_name like concat('%', #{createBy}, '%'))</if>
             <if test="publicCode != null and publicCode != ''">and s.public_code = #{publicCode}</if>
             <if test="deptId != null">and s.dept_id = #{deptId}</if>
-            ${params.dataScope}
+            and (
+                1 = 1
+                ${params.dataScope}
+                <if test="params.loginUserId != null">
+                    or exists (
+                        select 1 from biz_survey_admin sa
+                        where sa.survey_id = s.survey_id and sa.user_id = #{params.loginUserId}
+                    )
+                </if>
+            )
         </where>
         order by s.survey_id desc
     </select>
@@ -80,11 +97,14 @@
         insert into biz_survey (
             survey_name, survey_desc, public_code, status, start_time, end_time, max_answers,
             allow_multi, access_pwd, theme_json, webhook_url, daily_limit, need_captcha, webhook_secret,
-            view_count, answer_count, create_user_id, dept_id, create_by, create_time, remark
+            view_count, answer_count, create_user_id, dept_id, create_by, create_time, remark,
+            publish_at, mail_notify, mail_notify_to, remind_hours, remind_sent, remind_mail
         ) values (
             #{surveyName}, #{surveyDesc}, #{publicCode}, #{status}, #{startTime}, #{endTime}, #{maxAnswers},
             #{allowMulti}, #{accessPwd}, #{themeJson}, #{webhookUrl}, #{dailyLimit}, #{needCaptcha}, #{webhookSecret},
-            #{viewCount}, #{answerCount}, #{createUserId}, #{deptId}, #{createBy}, now(), #{remark}
+            #{viewCount}, #{answerCount}, #{createUserId}, #{deptId}, #{createBy}, now(), #{remark},
+            #{publishAt}, coalesce(#{mailNotify}, '0'), #{mailNotifyTo}, coalesce(#{remindHours}, 24),
+            coalesce(#{remindSent}, '0'), coalesce(#{remindMail}, '0')
         )
     </insert>
 
@@ -97,6 +117,8 @@
             <if test="status != null">status = #{status},</if>
             <if test="startTime != null">start_time = #{startTime},</if>
             <if test="endTime != null">end_time = #{endTime},</if>
+            <if test="params != null and params.clearStartTime != null">start_time = null,</if>
+            <if test="params != null and params.clearEndTime != null">end_time = null,</if>
             <if test="maxAnswers != null">max_answers = #{maxAnswers},</if>
             <if test="allowMulti != null">allow_multi = #{allowMulti},</if>
             <if test="accessPwd != null">access_pwd = #{accessPwd},</if>
@@ -112,10 +134,43 @@
             <if test="createBy != null and createBy != ''">create_by = #{createBy},</if>
             <if test="updateBy != null">update_by = #{updateBy},</if>
             <if test="remark != null">remark = #{remark},</if>
+            <if test="publishAt != null">publish_at = #{publishAt},</if>
+            <if test="params != null and params.clearPublishAt != null">publish_at = null,</if>
+            <if test="mailNotify != null">mail_notify = #{mailNotify},</if>
+            <if test="mailNotifyTo != null">mail_notify_to = #{mailNotifyTo},</if>
+            <if test="remindHours != null">remind_hours = #{remindHours},</if>
+            <if test="remindSent != null">remind_sent = #{remindSent},</if>
+            <if test="remindMail != null">remind_mail = #{remindMail},</if>
             update_time = now()
         </set>
         where survey_id = #{surveyId}
     </update>
+
+    <select id="selectDuePublish" resultMap="BizSurveyResult">
+        <include refid="selectVo"/>
+        where status = '0' and publish_at is not null and publish_at &lt;= now()
+        order by publish_at asc
+        limit 100
+    </select>
+
+    <select id="selectDueExpire" resultMap="BizSurveyResult">
+        <include refid="selectVo"/>
+        where status = '1' and end_time is not null and end_time &lt;= now()
+        order by end_time asc
+        limit 100
+    </select>
+
+    <select id="selectDueRemind" resultMap="BizSurveyResult">
+        <include refid="selectVo"/>
+        where status = '1'
+          and end_time is not null
+          and coalesce(remind_hours, 0) &gt; 0
+          and coalesce(remind_sent, '0') = '0'
+          and end_time &gt; now()
+          and end_time &lt;= now() + (coalesce(remind_hours, 24) || ' hours')::interval
+        order by end_time asc
+        limit 100
+    </select>
 
     <delete id="deleteBizSurveyByIds" parameterType="Long">
         delete from biz_survey where survey_id in

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.biz.mapper.BizQueryAdminMapper">
+
+    <resultMap type="com.ruoyi.biz.domain.BizQueryAdmin" id="AdminResult">
+        <id property="id" column="id"/>
+        <result property="queryId" column="query_id"/>
+        <result property="userId" column="user_id"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="userName" column="user_name"/>
+        <result property="nickName" column="nick_name"/>
+        <result property="phonenumber" column="phonenumber"/>
+    </resultMap>
+
+    <select id="selectByQueryId" parameterType="Long" resultMap="AdminResult">
+        select a.id, a.query_id, a.user_id, a.create_by, a.create_time,
+               u.user_name, u.nick_name, u.phonenumber
+        from biz_query_admin a
+        left join sys_user u on u.user_id = a.user_id
+        where a.query_id = #{queryId}
+        order by a.id asc
+    </select>
+
+    <select id="countByQueryAndUser" resultType="int">
+        select count(*) from biz_query_admin
+        where query_id = #{queryId} and user_id = #{userId}
+    </select>
+
+    <insert id="insert" parameterType="com.ruoyi.biz.domain.BizQueryAdmin" useGeneratedKeys="true" keyProperty="id">
+        insert into biz_query_admin (query_id, user_id, create_by, create_time)
+        values (#{queryId}, #{userId}, #{createBy}, now())
+    </insert>
+
+    <delete id="deleteByQueryAndUser">
+        delete from biz_query_admin where query_id = #{queryId} and user_id = #{userId}
+    </delete>
+
+    <delete id="deleteByQueryId" parameterType="Long">
+        delete from biz_query_admin where query_id = #{queryId}
+    </delete>
+
+    <select id="searchUsers" resultType="java.util.HashMap">
+        select u.user_id as "userId", u.user_name as "userName", u.nick_name as "nickName",
+               u.phonenumber as "phonenumber", u.dept_id as "deptId"
+        from sys_user u
+        where u.del_flag = '0' and u.status = '0'
+        <if test="keyword != null and keyword != ''">
+            and (
+                u.user_name like concat('%', #{keyword}, '%')
+                or u.nick_name like concat('%', #{keyword}, '%')
+                or u.phonenumber like concat('%', #{keyword}, '%')
+            )
+        </if>
+        order by u.user_id asc
+        limit 20
+    </select>
+
+    <select id="findUserByNameOrPhone" resultType="java.util.HashMap">
+        select u.user_id as "userId", u.user_name as "userName", u.nick_name as "nickName",
+               u.phonenumber as "phonenumber", u.dept_id as "deptId", u.status
+        from sys_user u
+        where u.del_flag = '0'
+          and (u.user_name = #{keyword} or u.phonenumber = #{keyword})
+        order by case when u.user_name = #{keyword} then 0 else 1 end
+        limit 1
+    </select>
+</mapper>

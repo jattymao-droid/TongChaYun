@@ -32,6 +32,9 @@ public interface IBizSurveyService
 
     int updateAnswerMeta(BizSurveyAnswer answer);
 
+    /** Batch update validFlag/remark. Body: answerIds, validFlag, remark */
+    int batchUpdateAnswerMeta(Map<String, Object> body);
+
     Map<String, Object> selectStats(Long surveyId);
 
     /**
@@ -44,7 +47,9 @@ public interface IBizSurveyService
 
     Map<String, Object> selectCrossStats(Long surveyId, Long q1Id, Long q2Id);
 
-    Map<String, Object> openMeta(String code, String accessPwd);
+    Map<String, Object> openMeta(String code, String accessPwd, String channel);
+
+    void openEvent(String code, Map<String, Object> body);
 
     Long openSubmit(String code, Map<String, Object> body, String ip, String ua);
 
@@ -68,4 +73,12 @@ public interface IBizSurveyService
 
     /** Admin: reassign survey owner */
     int transferOwnership(Long surveyId, Long targetUserId);
+
+    List<com.ruoyi.biz.domain.BizSurveyAdmin> listSurveyAdmins(Long surveyId);
+
+    List<Map<String, Object>> searchUsersForAdmin(String keyword);
+
+    int addSurveyAdmin(Long surveyId, Long userId, String keyword);
+
+    int removeSurveyAdmin(Long surveyId, Long userId);
 }

@@ -94,6 +94,54 @@
         order by count(1) desc
     </select>
 
+    <select id="selectRiskByIp" parameterType="Long" resultType="java.util.HashMap">
+        select coalesce(nullif(trim(submit_ip), ''), '(空)') as "key",
+               count(1)::bigint as "submitCnt",
+               sum(case when coalesce(valid_flag, '1') = '0' then 1 else 0 end)::bigint as "invalidCnt",
+               round(avg(coalesce(cost_ms, 0))::numeric, 0) as "avgCostMs",
+               percentile_cont(0.5) within group (order by coalesce(cost_ms, 0)) as "p50CostMs",
+               percentile_cont(0.9) within group (order by coalesce(cost_ms, 0)) as "p90CostMs"
+        from biz_survey_answer
+        where survey_id = #{surveyId}
+        group by coalesce(nullif(trim(submit_ip), ''), '(空)')
+        having count(1) &gt;= 1
+        order by count(1) desc, sum(case when coalesce(valid_flag, '1') = '0' then 1 else 0 end) desc
+        limit 50
+    </select>
+
+    <select id="selectRiskByDevice" parameterType="Long" resultType="java.util.HashMap">
+        select coalesce(nullif(trim(client_token), ''), '(空)') as "key",
+               count(1)::bigint as "submitCnt",
+               sum(case when coalesce(valid_flag, '1') = '0' then 1 else 0 end)::bigint as "invalidCnt",
+               round(avg(coalesce(cost_ms, 0))::numeric, 0) as "avgCostMs",
+               percentile_cont(0.5) within group (order by coalesce(cost_ms, 0)) as "p50CostMs",
+               percentile_cont(0.9) within group (order by coalesce(cost_ms, 0)) as "p90CostMs"
+        from biz_survey_answer
+        where survey_id = #{surveyId}
+        group by coalesce(nullif(trim(client_token), ''), '(空)')
+        having count(1) &gt;= 1
+        order by count(1) desc, sum(case when coalesce(valid_flag, '1') = '0' then 1 else 0 end) desc
+        limit 50
+    </select>
+
+    <update id="markInvalidByIp">
+        update biz_survey_answer
+        set valid_flag = '0',
+            remark = coalesce(nullif(remark, ''), 'risk blacklist ip')
+        where survey_id = #{surveyId}
+          and submit_ip = #{submitIp}
+          and coalesce(valid_flag, '1') &lt;&gt; '0'
+    </update>
+
+    <update id="markInvalidByDevice">
+        update biz_survey_answer
+        set valid_flag = '0',
+            remark = coalesce(nullif(remark, ''), 'risk blacklist device')
+        where survey_id = #{surveyId}
+          and client_token = #{clientToken}
+          and coalesce(valid_flag, '1') &lt;&gt; '0'
+    </update>
+
     <select id="selectDailyStats" parameterType="Long" resultType="java.util.HashMap">
         select to_char(submit_time, 'YYYY-MM-DD') as "date",
                count(1) as "count"

@@ -21,54 +21,23 @@
     </header>
 
     <main id="top">
-      <!-- Hero · SurveyKing style -->
+      <!-- Hero -->
       <section class="sk-hero">
         <div class="sk-hero-bg" aria-hidden="true">
           <div class="sk-hero-mesh"></div>
-          <div class="sk-hero-aurora">
-            <span class="band b1"></span>
-            <span class="band b2"></span>
-            <span class="band b3"></span>
-          </div>
-          <div class="sk-hero-beams">
-            <i></i><i></i><i></i>
-          </div>
           <div class="sk-hero-orbs">
             <span class="orb o1"></span>
             <span class="orb o2"></span>
             <span class="orb o3"></span>
-            <span class="orb o4"></span>
-            <span class="orb o5"></span>
           </div>
-          <div class="sk-hero-rings">
-            <span class="ring r1"></span>
-            <span class="ring r2"></span>
-            <span class="ring r3"></span>
-          </div>
-          <div class="sk-hero-floor"></div>
           <canvas ref="heroCanvas" class="sk-hero-canvas"></canvas>
-          <div class="sk-hero-grid"></div>
-          <div class="sk-hero-meteors">
-            <span></span><span></span><span></span>
-          </div>
-          <div class="sk-hero-shine"></div>
           <div class="sk-hero-vignette"></div>
         </div>
         <div class="sk-hero-inner">
           <div class="sk-hero-copy">
-            <p class="sk-status"><i class="sk-status-dot"></i>模板快速起步已开启</p>
             <p class="sk-brand-mark">{{ siteTitle }}</p>
             <h1>开箱即用的<br>查询与问卷一站式平台</h1>
-            <p class="sk-cap-line">
-              <span>Excel 导入</span><i>·</i>
-              <span>拖拽设计</span><i>·</i>
-              <span>短链发布</span><i>·</i>
-              <span>自动统计</span><i>·</i>
-              <span>PC / H5</span>
-            </p>
-            <div class="sk-chips">
-              <span v-for="t in heroChips" :key="t">{{ t }}</span>
-            </div>
+            <p class="sk-lead">Excel 导入、拖拽设计、短链发布、自动统计，一套流程覆盖 PC 与 H5。</p>
             <div class="js-hero-ctas">
               <button type="button" class="js-cta lg" @click="openLogin()">立即体验</button>
               <button type="button" class="js-ghost" @click="scrollTo('products')">了解产品</button>
@@ -82,39 +51,36 @@
               </div>
               <div class="sk-device-body">
                 <div class="sk-side">
-                  <div class="sk-side-item on">快查项目</div>
-                  <div class="sk-side-item">问卷项目</div>
-                  <div class="sk-side-item">模板中心</div>
-                  <div class="sk-side-item">数据导出</div>
+                  <div class="sk-side-item on">仪表盘</div>
+                  <div class="sk-side-item">我的查询</div>
+                  <div class="sk-side-item">我的问卷</div>
+                  <div class="sk-side-item">答卷通知</div>
                 </div>
                 <div class="sk-main">
                   <div class="sk-toolbar">
-                    <strong>成绩查询 · 已发布</strong>
-                    <span class="sk-pill live">回收中</span>
+                    <strong>仪表盘</strong>
+                    <span class="sk-pill live">今日</span>
                   </div>
                   <div class="sk-stats">
-                    <div><em>今日查询</em><b>1,286</b></div>
-                    <div><em>累计访问</em><b>28.4k</b></div>
-                    <div><em>命中率</em><b>96%</b></div>
+                    <div><em>查询项目</em><b>12</b></div>
+                    <div><em>问卷项目</em><b>8</b></div>
+                    <div><em>今日 UV</em><b>1.2k</b></div>
                   </div>
                   <div class="sk-preview">
-                    <div class="sk-preview-head">公开查询结果</div>
+                    <div class="sk-preview-head">最近修改</div>
                     <div class="sk-chips-mini">
-                      <span>学号 20260018</span>
-                      <span>张同学</span>
+                      <span>问卷</span>
+                      <span>进行中</span>
                     </div>
                     <div class="sk-score-row">
-                      <div><em>语文</em><b>118</b></div>
-                      <div><em>数学</em><b>132</b></div>
-                      <div><em>英语</em><b>126</b></div>
-                      <div class="hot"><em>总分</em><b>612</b></div>
+                      <div><em>答卷</em><b>286</b></div>
+                      <div><em>浏览</em><b>1.4k</b></div>
+                      <div class="hot"><em>转化</em><b>21%</b></div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div class="sk-float a"><i></i>短链已生成</div>
-            <div class="sk-float b"><i></i>Excel 已导入</div>
           </div>
         </div>
       </section>
@@ -269,23 +235,35 @@
           </el-input>
         </el-form-item>
         <el-form-item prop="code" v-if="captchaEnabled" class="code-item login-field">
-          <div class="js-code-row">
-            <el-input
-              v-model="loginForm.code"
-              class="code-input"
-              auto-complete="off"
-              placeholder="请输入验证码"
-              @keyup.enter.native="handleLogin"
-            >
-              <i slot="prefix" class="el-input__icon el-icon-key login-field-icon" />
-            </el-input>
-            <div class="login-code" title="点击刷新验证码" @click="getCode">
-              <img :src="codeUrl" class="login-code-img" alt="验证码" />
-            </div>
-          </div>
+          <table class="js-code-table" cellspacing="0" cellpadding="0" style="width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;">
+            <tr>
+              <td class="js-code-td-input" style="padding:0 10px 0 0;vertical-align:middle;">
+                <el-input
+                  v-model="loginForm.code"
+                  class="code-input"
+                  auto-complete="off"
+                  placeholder="请输入验证码"
+                  @keyup.enter.native="handleLogin"
+                >
+                  <i slot="prefix" class="el-input__icon el-icon-key login-field-icon" />
+                </el-input>
+              </td>
+              <td class="js-code-td-img" style="width:120px;padding:0;vertical-align:middle;">
+                <div class="login-code" title="点击刷新验证码" style="width:120px;height:50px;box-sizing:border-box;" @click="getCode">
+                  <img v-if="codeUrl" :src="codeUrl" class="login-code-img" alt="验证码" style="display:block;width:100%;height:100%;object-fit:contain;" />
+                  <span v-else class="login-code-placeholder">点击获取</span>
+                </div>
+              </td>
+            </tr>
+          </table>
         </el-form-item>
         <div class="login-extra-row">
           <el-checkbox v-model="loginForm.rememberMe">记住密码</el-checkbox>
+          <router-link
+            class="forgot-link"
+            to="/forgotPassword"
+            @click.native="loginOpen = false"
+          >忘记密码？</router-link>
         </div>
         <el-button
           :loading="loading"
@@ -297,10 +275,11 @@
           <span v-if="!loading">登 录</span>
           <span v-else>登录中…</span>
         </el-button>
-        <div class="social-login">
+        <div v-if="oauthWechatEnabled || oauthQqEnabled" class="social-login">
           <div class="social-divider"><span>其他登录方式</span></div>
           <div class="social-btns">
             <button
+              v-if="oauthWechatEnabled"
               type="button"
               class="social-btn wechat"
               :disabled="socialLoading"
@@ -316,6 +295,7 @@
               <span class="social-label">微信</span>
             </button>
             <button
+              v-if="oauthQqEnabled"
               type="button"
               class="social-btn qq"
               :disabled="socialLoading"
@@ -332,14 +312,8 @@
           </div>
           <p v-if="socialLoading" class="social-tip">正在跳转第三方登录…</p>
         </div>
-        <div class="card-foot login-foot">
-          <router-link
-            class="forgot-link"
-            to="/forgotPassword"
-            @click.native="loginOpen = false"
-          >忘记密码？</router-link>
-          <span v-if="register" class="foot-sep" aria-hidden="true" />
-          <span v-if="register" class="foot-register">
+        <div class="card-foot login-foot" v-if="register">
+          <span class="foot-register">
             还没有账号？
             <router-link class="register-link" to="/register" @click.native="loginOpen = false">免费注册</router-link>
           </span>
@@ -405,7 +379,6 @@ export default {
       oauthWechatEnabled: false,
       oauthQqEnabled: false,
       socialLoading: false,
-      heroChips: ['成绩查询', '录取查询', '满意度问卷', '活动报名', '分班查询', '证书查询', '课堂反馈', '模板打印'],
       trustTags: ['中小学', '培训机构', '高校教务', '招生办', '运营团队', '教研组'],
       workflow: [
         { n: '01', title: '创建项目', desc: '模板、内容与主题' },
@@ -523,6 +496,8 @@ export default {
     initHeroMotion() {
       if (typeof window === 'undefined') return
       if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+      // 移动端关闭 canvas，避免首屏卡顿
+      if (window.matchMedia && window.matchMedia('(max-width: 960px)').matches) return
       const canvas = this.$refs.heroCanvas
       const hero = this.$el && this.$el.querySelector('.sk-hero')
       if (!canvas || !hero) return
@@ -555,24 +530,13 @@ export default {
         this._heroMouse.x = -9999
         this._heroMouse.y = -9999
       }
-      const onClick = (e) => {
-        const rect = this._heroRect || hero.getBoundingClientRect()
-        this._heroRipples.push({
-          x: e.clientX - rect.left,
-          y: e.clientY - rect.top,
-          r: 8,
-          life: 1
-        })
-      }
       this._heroResize = resize
       this._heroMove = onMove
       this._heroLeave = onLeave
-      this._heroClick = onClick
       resize()
       window.addEventListener('resize', resize)
       hero.addEventListener('mousemove', onMove)
       hero.addEventListener('mouseleave', onLeave)
-      hero.addEventListener('click', onClick)
       const loop = () => {
         if (!this._heroRunning) return
         this._heroTick += 1
@@ -589,7 +553,6 @@ export default {
       if (hero) {
         if (this._heroMove) hero.removeEventListener('mousemove', this._heroMove)
         if (this._heroLeave) hero.removeEventListener('mouseleave', this._heroLeave)
-        if (this._heroClick) hero.removeEventListener('click', this._heroClick)
       }
       this._heroRaf = null
       this._heroResize = null
@@ -602,17 +565,17 @@ export default {
       this._heroRipples = []
     },
     seedHeroParticles(w, h) {
-      const count = Math.max(48, Math.min(90, Math.floor((w * h) / 16000)))
+      const count = Math.max(28, Math.min(48, Math.floor((w * h) / 28000)))
       const list = []
       for (let i = 0; i < count; i++) {
-        const speed = 0.25 + Math.random() * 0.55
+        const speed = 0.18 + Math.random() * 0.35
         const angle = Math.random() * Math.PI * 2
         list.push({
           x: Math.random() * w,
           y: Math.random() * h,
           vx: Math.cos(angle) * speed,
           vy: Math.sin(angle) * speed,
-          r: 1.4 + Math.random() * 2.4,
+          r: 1.2 + Math.random() * 1.8,
           pulse: Math.random() * Math.PI * 2,
           hue: Math.random() > 0.55 ? 0 : 1
         })
@@ -620,18 +583,6 @@ export default {
       this._heroParticles = list
       this._heroMeteors = []
       this._heroSize = { w, h }
-    },
-    spawnHeroMeteor(w, h) {
-      if (this._heroMeteors.length > 4) return
-      const fromRight = Math.random() > 0.4
-      this._heroMeteors.push({
-        x: fromRight ? w * (0.55 + Math.random() * 0.45) : Math.random() * w * 0.4,
-        y: -20 - Math.random() * 40,
-        vx: fromRight ? -(2.8 + Math.random() * 2.2) : (1.2 + Math.random()),
-        vy: 3.2 + Math.random() * 2.4,
-        len: 48 + Math.random() * 70,
-        life: 1
-      })
     },
     drawHeroParticles() {
       const ctx = this._heroCtx
@@ -641,46 +592,33 @@ export default {
       const dpr = this._heroDpr || 1
       const { w, h } = size
       const mouse = this._heroMouse || { x: -9999, y: -9999, active: false }
-      const tick = this._heroTick || 0
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.clearRect(0, 0, w, h)
 
-      // soft energy core
-      const gx = w * (0.72 + Math.sin(tick * 0.008) * 0.04)
-      const gy = h * (0.38 + Math.cos(tick * 0.006) * 0.05)
-      const core = ctx.createRadialGradient(gx, gy, 0, gx, gy, Math.max(w, h) * 0.42)
-      core.addColorStop(0, 'rgba(56, 189, 248, 0.16)')
-      core.addColorStop(0.35, 'rgba(37, 99, 235, 0.08)')
-      core.addColorStop(1, 'rgba(37, 99, 235, 0)')
-      ctx.fillStyle = core
-      ctx.fillRect(0, 0, w, h)
-
-      if (tick % 90 === 0) this.spawnHeroMeteor(w, h)
-
-      const linkDist = Math.min(170, Math.max(110, w * 0.14))
+      const linkDist = Math.min(140, Math.max(90, w * 0.1))
       for (let i = 0; i < pts.length; i++) {
         const p = pts[i]
         if (mouse.active) {
           const mdx = mouse.x - p.x
           const mdy = mouse.y - p.y
           const md = Math.sqrt(mdx * mdx + mdy * mdy) || 1
-          if (md < 180) {
-            p.vx += (mdx / md) * 0.025
-            p.vy += (mdy / md) * 0.025
+          if (md < 140) {
+            p.vx += (mdx / md) * 0.018
+            p.vy += (mdy / md) * 0.018
           }
         }
         const sp = Math.sqrt(p.vx * p.vx + p.vy * p.vy) || 1
-        if (sp > 1.2) {
-          p.vx *= 0.96
-          p.vy *= 0.96
+        if (sp > 0.9) {
+          p.vx *= 0.97
+          p.vy *= 0.97
         }
         p.x += p.vx
         p.y += p.vy
-        p.pulse += 0.04
-        if (p.x < -30) p.x = w + 30
-        if (p.x > w + 30) p.x = -30
-        if (p.y < -30) p.y = h + 30
-        if (p.y > h + 30) p.y = -30
+        p.pulse += 0.03
+        if (p.x < -20) p.x = w + 20
+        if (p.x > w + 20) p.x = -20
+        if (p.y < -20) p.y = h + 20
+        if (p.y > h + 20) p.y = -20
       }
 
       for (let i = 0; i < pts.length; i++) {
@@ -691,107 +629,32 @@ export default {
           const dy = a.y - b.y
           const dist = Math.sqrt(dx * dx + dy * dy)
           if (dist > linkDist) continue
-          const alpha = (1 - dist / linkDist) * 0.38
+          const alpha = (1 - dist / linkDist) * 0.22
           ctx.beginPath()
           ctx.moveTo(a.x, a.y)
           ctx.lineTo(b.x, b.y)
-          ctx.strokeStyle = a.hue
-            ? `rgba(14, 165, 233, ${alpha})`
-            : `rgba(37, 99, 235, ${alpha})`
-          ctx.lineWidth = 1.15
+          ctx.strokeStyle = `rgba(37, 99, 235, ${alpha})`
+          ctx.lineWidth = 1
           ctx.stroke()
-        }
-        if (mouse.active) {
-          const a = pts[i]
-          const dx = a.x - mouse.x
-          const dy = a.y - mouse.y
-          const dist = Math.sqrt(dx * dx + dy * dy)
-          if (dist < 160) {
-            ctx.beginPath()
-            ctx.moveTo(a.x, a.y)
-            ctx.lineTo(mouse.x, mouse.y)
-            ctx.strokeStyle = `rgba(59, 130, 246, ${(1 - dist / 160) * 0.35})`
-            ctx.lineWidth = 1
-            ctx.stroke()
-          }
         }
       }
 
       for (let i = 0; i < pts.length; i++) {
         const p = pts[i]
-        const glow = p.r + 1.2 + Math.sin(p.pulse) * 0.8
-        const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, glow * 3.2)
-        if (p.hue) {
-          g.addColorStop(0, 'rgba(125, 211, 252, 0.95)')
-          g.addColorStop(0.4, 'rgba(14, 165, 233, 0.35)')
-          g.addColorStop(1, 'rgba(14, 165, 233, 0)')
-        } else {
-          g.addColorStop(0, 'rgba(147, 197, 253, 0.95)')
-          g.addColorStop(0.4, 'rgba(37, 99, 235, 0.4)')
-          g.addColorStop(1, 'rgba(37, 99, 235, 0)')
-        }
+        const glow = p.r + 0.8 + Math.sin(p.pulse) * 0.5
         ctx.beginPath()
-        ctx.fillStyle = g
-        ctx.arc(p.x, p.y, glow * 3.2, 0, Math.PI * 2)
+        ctx.arc(p.x, p.y, glow, 0, Math.PI * 2)
+        ctx.fillStyle = p.hue ? 'rgba(14, 165, 233, 0.55)' : 'rgba(37, 99, 235, 0.5)'
         ctx.fill()
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, Math.max(1.2, glow * 0.55), 0, Math.PI * 2)
-        ctx.fillStyle = '#fff'
-        ctx.globalAlpha = 0.85
-        ctx.fill()
-        ctx.globalAlpha = 1
       }
 
-      // meteors
-      for (let i = this._heroMeteors.length - 1; i >= 0; i--) {
-        const m = this._heroMeteors[i]
-        m.x += m.vx
-        m.y += m.vy
-        m.life -= 0.012
-        if (m.life <= 0 || m.y > h + 80) {
-          this._heroMeteors.splice(i, 1)
-          continue
-        }
-        const ang = Math.atan2(m.vy, m.vx)
-        const tx = m.x - Math.cos(ang) * m.len
-        const ty = m.y - Math.sin(ang) * m.len
-        const grad = ctx.createLinearGradient(m.x, m.y, tx, ty)
-        grad.addColorStop(0, `rgba(255,255,255,${0.95 * m.life})`)
-        grad.addColorStop(0.25, `rgba(125,211,252,${0.75 * m.life})`)
-        grad.addColorStop(1, 'rgba(37,99,235,0)')
-        ctx.beginPath()
-        ctx.moveTo(m.x, m.y)
-        ctx.lineTo(tx, ty)
-        ctx.strokeStyle = grad
-        ctx.lineWidth = 2.2
-        ctx.lineCap = 'round'
-        ctx.stroke()
-      }
-
-      // click ripples
-      for (let i = this._heroRipples.length - 1; i >= 0; i--) {
-        const r = this._heroRipples[i]
-        r.r += 3.5
-        r.life -= 0.025
-        if (r.life <= 0) {
-          this._heroRipples.splice(i, 1)
-          continue
-        }
-        ctx.beginPath()
-        ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2)
-        ctx.strokeStyle = `rgba(59, 130, 246, ${r.life * 0.45})`
-        ctx.lineWidth = 2
-        ctx.stroke()
-      }
-
-      // mouse halo
       if (mouse.active) {
-        const halo = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 90)
-        halo.addColorStop(0, 'rgba(96, 165, 250, 0.22)')
+        const halo = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 70)
+        halo.addColorStop(0, 'rgba(96, 165, 250, 0.14)')
         halo.addColorStop(1, 'rgba(96, 165, 250, 0)')
         ctx.fillStyle = halo
         ctx.beginPath()
-        ctx.arc(mouse.x, mouse.y, 90, 0, Math.PI * 2)
+        ctx.arc(mouse.x, mouse.y, 70, 0, Math.PI * 2)
         ctx.fill()
       }
     },
@@ -872,6 +735,49 @@ export default {
 <style lang="scss">
 @import "~@/assets/styles/auth-page.scss";
 
+.js-login-dialog .js-code-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+.js-login-dialog .js-code-td-input {
+  padding: 0 10px 0 0;
+  vertical-align: middle;
+}
+.js-login-dialog .js-code-td-img {
+  width: 120px;
+  padding: 0;
+  vertical-align: middle;
+}
+.js-login-dialog .js-code-table .login-code {
+  box-sizing: border-box;
+  width: 120px;
+  height: 50px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f8fafc;
+  cursor: pointer;
+}
+.js-login-dialog .js-code-table .login-code:hover {
+  border-color: var(--js-brand, #1d4ed8);
+}
+.js-login-dialog .js-code-table .login-code-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.js-login-dialog .login-code-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
 .v-modal {
   backdrop-filter: blur(8px);
   background: rgba(15, 23, 42, 0.42) !important;
@@ -881,7 +787,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 2px 0 4px;
+  margin: 2px 0 14px;
 }
 .forgot-link {
   font-size: 13px;
@@ -914,13 +820,6 @@ export default {
     height: 1px;
     background: linear-gradient(90deg, transparent, #e2e8f0 20%, #e2e8f0 80%, transparent);
   }
-}
-.login-foot .foot-sep {
-  width: 1px;
-  height: 12px;
-  background: #cbd5e1;
-  flex-shrink: 0;
-  border-radius: 1px;
 }
 .login-foot .foot-register {
   margin-left: 0;

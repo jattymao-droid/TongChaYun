@@ -1,8 +1,8 @@
 <template>
   <div class="open-survey" :style="rootStyle">
-    <div class="hero">
-      <h1>{{ surveyName || '问卷填写' }}</h1>
-      <p v-if="surveyDesc">{{ surveyDesc }}</p>
+    <div class="hero" :style="heroStyle" v-if="showHero">
+      <h1 v-if="showTitle" :style="titleStyle">{{ surveyName || '问卷填写' }}</h1>
+      <p v-if="showDesc && surveyDesc">{{ surveyDesc }}</p>
     </div>
 
     <div class="panel" v-if="needPwd && !unlocked" v-loading="metaLoading">
@@ -43,10 +43,24 @@
           />
         </div>
 
-        <div v-if="needCaptcha && (fillMode === 'all' || isLastStep)" class="captcha-row">
-          <el-input v-model="captchaCode" placeholder="验证码" size="small" style="width:140px" @keyup.enter.native="handleSubmit" />
-          <img v-if="captchaUrl" :src="captchaUrl" class="captcha-img" alt="captcha" @click="refreshCaptcha" />
-          <el-button type="text" size="mini" @click="refreshCaptcha">换一张</el-button>
+        <div v-if="needCaptcha && (fillMode === 'all' || isLastStep)" class="captcha-field">
+          <div class="captcha-label">验证码 <span class="req">*</span></div>
+          <div class="captcha-box">
+            <el-input
+              v-model="captchaCode"
+              class="captcha-input"
+              placeholder="请输入计算结果"
+              maxlength="6"
+              clearable
+              @keyup.enter.native="handleSubmit"
+            />
+            <button type="button" class="captcha-media" title="点击刷新验证码" @click="refreshCaptcha">
+              <img v-if="captchaUrl" :src="captchaUrl" alt="验证码" />
+              <span v-else class="captcha-loading">加载中</span>
+              <i class="captcha-refresh" aria-hidden="true">↻</i>
+            </button>
+          </div>
+          <p class="captcha-hint">看不清？点击右侧图片刷新</p>
         </div>
         <div class="actions step-actions" v-if="fillMode === 'step' || fillMode === 'pages'">
           <el-button :disabled="stepIndex <= 0" @click="prevStep">{{ fillMode === 'pages' ? '上一页' : '上一题' }}</el-button>
@@ -58,9 +72,25 @@
         </div>
       </template>
 
-      <el-result v-else-if="submitted" icon="success" title="提交成功" sub-title="感谢您的参与">
+      <el-result
+        v-else-if="submitted"
+        icon="success"
+        :title="successTitle"
+        :sub-title="successSubTitle"
+        class="survey-success"
+      >
         <template slot="extra">
-          <el-button type="primary" class="theme-btn" @click="resetAndAgain" v-if="allowAgain">再填一份</el-button>
+          <div v-if="voucherNo" class="voucher-slip">
+            <div class="voucher-label">报名凭证</div>
+            <div class="voucher-name">{{ surveyName || '问卷' }}</div>
+            <div class="voucher-no">{{ voucherNo }}</div>
+            <p class="voucher-hint">请妥善保存凭证号，必要时可打印本页</p>
+          </div>
+          <div class="success-extra no-print">
+            <el-button v-if="voucherNo" @click="printVoucher">打印凭证</el-button>
+            <el-button type="primary" class="theme-btn" @click="resetAndAgain" v-if="showAgainBtn">再填一份</el-button>
+            <el-button v-if="successRedirectUrl" @click="goSuccessRedirect">立即前往</el-button>
+          </div>
         </template>
       </el-result>
 
@@ -70,7 +100,7 @@
 </template>
 
 <script>
-import { openSurveyMeta, openSurveySubmit, openSurveyUploadUrl, openSurveyDraft, saveOpenSurveyDraft } from '@/api/biz/survey'
+import { openSurveyMeta, openSurveySubmit, openSurveyUploadUrl, openSurveyDraft, saveOpenSurveyDraft, openSurveyEvent } from '@/api/biz/survey'
 import { getCodeImg } from '@/api/login'
 import SurveyQuestionField from '@/components/biz/SurveyQuestionField'
 import {
@@ -94,6 +124,12 @@ import {
   markSubmitted,
   isSubmittedLocally
 } from '@/utils/bizSurveyDraft'
+import {
+  normalizeSurveyTheme,
+  buildSurveyPageStyle,
+  buildSurveyHeroStyle,
+  buildSurveyTitleStyle
+} from '@/utils/bizSurveyTheme'
 
 export default {
   name: 'OpenSurvey',
@@ -122,18 +158,57 @@ export default {
       captchaUrl: '',
       channel: '',
       clientToken: '',
+      startLogged: false,
       stepIndex: 0,
       autoAdvanceTimer: null,
-      draftTimer: null
+      draftTimer: null,
+      redirectTimer: null,
+      redirectCountdown: 0,
+      answerId: null
     }
   },
   computed: {
-    themeColor() { return (this.theme && this.theme.color) || '#1677ff' },
+    themeNorm() {
+      return normalizeSurveyTheme(this.theme)
+    },
+    showTitle() {
+      return this.themeNorm.showTitle
+    },
+    showDesc() {
+      return this.themeNorm.showDesc
+    },
+    showHero() {
+      return this.showTitle || (this.showDesc && !!this.surveyDesc)
+    },
+    successTitle() {
+      return this.themeNorm.successTitle || '提交成功'
+    },
+    successMsg() {
+      return this.themeNorm.successMsg || '感谢您的参与'
+    },
+    successRedirectUrl() {
+      return this.themeNorm.successRedirectUrl || ''
+    },
+    successSubTitle() {
+      const tip = this.successMsg
+      if (this.redirectCountdown > 0) return tip + '（' + this.redirectCountdown + ' 秒后跳转）'
+      return tip
+    },
+    voucherNo() {
+      if (!this.answerId) return ''
+      return 'TCY-' + String(this.code || '').toUpperCase() + '-' + this.answerId
+    },
+    showAgainBtn() {
+      return this.allowAgain && this.themeNorm.showFillAgain !== false
+    },
+    heroStyle() {
+      return buildSurveyHeroStyle(this.theme)
+    },
+    titleStyle() {
+      return buildSurveyTitleStyle(this.theme)
+    },
     rootStyle() {
-      return {
-        '--theme': this.themeColor,
-        background: (this.theme && this.theme.bg) || undefined
-      }
+      return buildSurveyPageStyle(this.theme, process.env.VUE_APP_BASE_API)
     },
     uploadUrl() { return openSurveyUploadUrl(this.code) },
     uploadData() { return this.accessPwd ? { accessPwd: this.accessPwd } : {} },
@@ -198,6 +273,7 @@ export default {
     this.loadMeta()
   },
   beforeDestroy() {
+    this.clearSuccessRedirect()
     if (this.draftTimer) clearTimeout(this.draftTimer)
     if (this.autoAdvanceTimer) clearTimeout(this.autoAdvanceTimer)
   },
@@ -214,6 +290,7 @@ export default {
     },
     onAnswerChange(q) {
       this.tick++
+      this.trackStart()
       const vis = new Set(this.visibleQuestions.map(x => String(x.questionId)))
       Object.keys(this.form).forEach(qid => {
         if (!vis.has(String(qid))) {
@@ -231,6 +308,15 @@ export default {
           this.nextStep()
         }, 320)
       }
+    },
+    trackStart() {
+      if (this.startLogged || !this.code || !this.unlocked) return
+      this.startLogged = true
+      openSurveyEvent(this.code, {
+        action: 'start',
+        channel: this.channel || undefined,
+        accessPwd: this.accessPwd || undefined
+      }).catch(() => { this.startLogged = false })
     },
     scheduleDraftSave() {
       if (this.draftTimer) clearTimeout(this.draftTimer)
@@ -304,7 +390,7 @@ export default {
     },
     loadMeta() {
       this.metaLoading = true
-      openSurveyMeta(this.code, this.accessPwd || undefined).then(res => {
+      openSurveyMeta(this.code, this.accessPwd || undefined, this.channel || undefined).then(res => {
         const data = res.data || {}
         this.surveyName = data.surveyName
         this.surveyDesc = data.surveyDesc
@@ -323,6 +409,7 @@ export default {
         this.form = form
         this.fileListMap = files
         this.startedAt = Date.now()
+        this.startLogged = false
         this.stepIndex = 0
         this.tick++
         this.needCaptcha = !!data.needCaptcha
@@ -330,6 +417,7 @@ export default {
         if (!this.allowAgain && isSubmittedLocally(this.code)) {
           this.submitted = true
           this.allowAgain = false
+          this.restoreVoucher()
         } else {
           this.maybeRestoreDraft()
         }
@@ -400,17 +488,65 @@ export default {
         code: this.needCaptcha ? this.captchaCode : undefined,
         uuid: this.needCaptcha ? this.captchaUuid : undefined,
         answers
-      }).then(() => {
+      }).then(res => {
+        const aid = res && res.data && res.data.answerId
+        this.answerId = aid != null ? aid : null
+        if (this.answerId != null) {
+          try {
+            sessionStorage.setItem('tcy_voucher_' + this.code, String(this.answerId))
+          } catch (e) { /* ignore */ }
+        }
         this.submitted = true
         markSubmitted(this.code)
         if (!this.allowAgain) this.allowAgain = false
+        this.scheduleSuccessRedirect()
       })
         .catch(() => { if (this.needCaptcha) this.refreshCaptcha() })
         .finally(() => { this.submitting = false })
     },
+    restoreVoucher() {
+      try {
+        const raw = sessionStorage.getItem('tcy_voucher_' + this.code)
+        if (raw) this.answerId = Number(raw) || raw
+      } catch (e) { /* ignore */ }
+    },
+    printVoucher() {
+      window.print()
+    },
+    clearSuccessRedirect() {
+      if (this.redirectTimer) {
+        clearInterval(this.redirectTimer)
+        this.redirectTimer = null
+      }
+      this.redirectCountdown = 0
+    },
+    scheduleSuccessRedirect() {
+      this.clearSuccessRedirect()
+      const url = this.successRedirectUrl
+      if (!url) return
+      let sec = Number(this.themeNorm.successRedirectSec)
+      if (!Number.isFinite(sec) || sec < 0) sec = 0
+      if (sec === 0) {
+        window.location.href = url
+        return
+      }
+      this.redirectCountdown = Math.floor(sec)
+      this.redirectTimer = setInterval(() => {
+        this.redirectCountdown -= 1
+        if (this.redirectCountdown <= 0) {
+          this.clearSuccessRedirect()
+          window.location.href = url
+        }
+      }, 1000)
+    },
+    goSuccessRedirect() {
+      if (this.successRedirectUrl) window.location.href = this.successRedirectUrl
+    },
     resetAndAgain() {
       if (!this.allowAgain) return
+      this.clearSuccessRedirect()
       this.submitted = false
+      this.answerId = null
       clearDraft(this.code)
       this.loadMeta()
     }
@@ -421,7 +557,6 @@ export default {
 <style scoped>
 .open-survey {
   min-height: 100vh;
-  background: linear-gradient(180deg, #f5f8ff 0%, #f7f7f7 280px, #f7f7f7 100%);
   padding: 24px 16px 48px;
   box-sizing: border-box;
 }
@@ -436,9 +571,60 @@ export default {
 .actions { margin-top: 8px; text-align: center; }
 .theme-btn { background: var(--theme); border-color: var(--theme); color: #fff; }
 .theme-btn.is-plain { background: #fff; color: var(--theme); }
-.captcha-row { display: flex; align-items: center; gap: 10px; justify-content: center; margin: 12px 0 4px; }
-.captcha-img { height: 38px; cursor: pointer; border-radius: 4px; }
-@media (max-width: 768px) { .hero h1 { font-size: 22px; } }
+.captcha-field { margin: 8px 0 16px; }
+.captcha-label { font-size: 14px; font-weight: 600; color: #1f2937; margin-bottom: 8px; }
+.captcha-label .req { color: #ef4444; margin-left: 2px; }
+.captcha-box { display: flex; align-items: stretch; gap: 10px; }
+.captcha-input { flex: 1; min-width: 0; }
+.captcha-input >>> .el-input__inner {
+  height: 42px;
+  line-height: 42px;
+  border-radius: 10px;
+}
+.captcha-media {
+  position: relative;
+  flex: none;
+  width: 118px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f8fafc;
+  overflow: hidden;
+  cursor: pointer;
+}
+.captcha-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 0;
+}
+.captcha-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 12px;
+  color: #94a3b8;
+}
+.captcha-refresh {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.55);
+  color: #fff;
+  font-style: normal;
+  font-size: 12px;
+  line-height: 20px;
+  text-align: center;
+  pointer-events: none;
+}
+.captcha-hint { margin: 6px 0 0; font-size: 12px; color: #94a3b8; }
+@media (max-width: 768px) { .hero h1 { font-size: 22px; } .captcha-media { width: 108px; } }
 
 .step-progress { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; font-size: 12px; color: #94a3b8; }
 .step-track { flex: 1; height: 6px; border-radius: 999px; background: #e5e7eb; overflow: hidden; }
@@ -446,4 +632,37 @@ export default {
 .step-actions { display: flex; gap: 10px; }
 .step-actions .el-button { flex: 1; }
 .page-title { font-size: 16px; font-weight: 650; color: #1f2937; margin: 0 0 14px; }
+.voucher-slip {
+  margin: 0 auto 16px;
+  max-width: 360px;
+  padding: 16px 18px;
+  border: 1.5px dashed #94a3b8;
+  border-radius: 12px;
+  background: #f8fafc;
+  text-align: center;
+}
+.voucher-label {
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: .12em;
+  color: var(--theme);
+  margin-bottom: 6px;
+}
+.voucher-name { font-size: 14px; color: #334155; margin-bottom: 10px; }
+.voucher-no {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  color: #0f172a;
+  word-break: break-all;
+}
+.voucher-hint { margin: 10px 0 0; font-size: 12px; color: #64748b; }
+.success-extra { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+@media print {
+  .no-print, .hero { display: none !important; }
+  .open-survey { padding: 12mm !important; background: #fff !important; }
+  .panel { box-shadow: none !important; }
+  .voucher-slip { border: 2px solid #333 !important; background: #fff !important; max-width: none; }
+}
 </style>

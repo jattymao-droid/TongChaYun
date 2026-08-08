@@ -1,0 +1,183 @@
+/* Shared TongChaYun biz design tokens + page shell */
+
+:root {
+  --biz-accent: #1d4ed8;
+  --biz-accent-soft: #eff6ff;
+  --biz-accent-hover: #bfdbfe;
+  --biz-bg: #f5f7fb;
+  --biz-bg-soft: #f8fafc;
+  --biz-line: #e8ecf2;
+  --biz-line-strong: #e2e8f0;
+  --biz-ink: #0f172a;
+  --biz-text: #1f2329;
+  --biz-muted: #64748b;
+  --biz-muted-soft: #94a3b8;
+  --biz-radius: 14px;
+  --biz-radius-sm: 10px;
+}
+
+.biz-page {
+  min-height: calc(100vh - 90px);
+  margin: -20px;
+  padding: 22px 28px 32px;
+  background: var(--biz-bg);
+  color: var(--biz-text);
+}
+
+.biz-page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.biz-page-head h1,
+.biz-page-head .biz-page-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--biz-ink);
+}
+
+.biz-page-head .head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.biz-panel {
+  background: #fff;
+  border: 1px solid var(--biz-line);
+  border-radius: var(--biz-radius);
+  padding: 16px 18px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.biz-panel + .biz-panel {
+  margin-top: 14px;
+}
+
+.biz-panel.is-flush {
+  padding: 0;
+  overflow: hidden;
+}
+
+.biz-search-bar {
+  margin-bottom: 14px;
+  padding: 14px 16px 4px;
+  background: #fff;
+  border: 1px solid var(--biz-line);
+  border-radius: var(--biz-radius);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.biz-empty {
+  text-align: center;
+  padding: 56px 20px;
+  color: var(--biz-muted);
+  background: #fff;
+  border: 1px dashed #cbd5e1;
+  border-radius: var(--biz-radius);
+}
+
+.biz-empty .empty-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 14px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #eff6ff, #dbeafe);
+  color: var(--biz-accent);
+  font-size: 28px;
+}
+
+.biz-empty p {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 650;
+  color: #334155;
+}
+
+.biz-empty .empty-sub {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--biz-muted-soft);
+}
+
+.biz-stat-card {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 18px 16px;
+  background: #fff;
+  border: 1px solid var(--biz-line);
+  border-radius: var(--biz-radius);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.biz-stat-card .stat-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+  background: var(--biz-accent-soft);
+  color: var(--biz-accent);
+}
+
+.biz-stat-card .stat-label {
+  font-size: 13px;
+  color: var(--biz-muted);
+  margin-bottom: 4px;
+}
+
+.biz-stat-card .stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--biz-ink);
+  letter-spacing: -0.03em;
+}
+
+.biz-stat-card .stat-sub {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--biz-muted-soft);
+}
+
+.biz-wizard-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  margin-top: 18px;
+  padding: 12px 16px;
+  background: #fff;
+  border: 1px solid var(--biz-line);
+  border-radius: var(--biz-radius);
+  box-shadow: 0 -6px 20px rgba(15, 23, 42, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 900px) {
+  .biz-page {
+    margin: -10px;
+    padding: 16px;
+  }
+  .biz-page-head h1,
+  .biz-page-head .biz-page-title {
+    font-size: 18px;
+  }
+}

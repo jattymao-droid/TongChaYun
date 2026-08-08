@@ -149,6 +149,41 @@ public class SysBasicServiceImpl implements ISysBasicService
     }
 
     @Override
+    public boolean sendBizMail(String to, String subject, String html)
+    {
+        if (StringUtils.isEmpty(to) || StringUtils.isEmpty(subject))
+        {
+            return false;
+        }
+        SysBasicSettings s = loadRaw();
+        if (!Convert.toBool(s.getMailEnabled(), false))
+        {
+            return false;
+        }
+        if (StringUtils.isEmpty(s.getMailHost()) || StringUtils.isEmpty(s.getMailUsername())
+            || StringUtils.isEmpty(s.getMailPassword()))
+        {
+            return false;
+        }
+        try
+        {
+            sendMail(s, to.trim(), subject, StringUtils.nvl(html, ""));
+            return true;
+        }
+        catch (Exception e)
+        {
+            return false;
+        }
+    }
+
+    @Override
+    public String getSiteTitle()
+    {
+        String title = configService.selectConfigByKey(K_TITLE);
+        return StringUtils.isEmpty(title) ? "通查云" : title;
+    }
+
+    @Override
     public void sendRegisterCode(String email, String captchaCode, String captchaUuid)
     {
         if (StringUtils.isEmpty(email) || !email.matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$"))

@@ -65,6 +65,20 @@ public class OpenQueryController extends BaseController
         queryService.openExport(code, params, accessPwd, response, captchaCode, captchaUuid);
     }
 
+    @RateLimiter(time = 60, count = 6, limitType = LimitType.IP)
+    @PostMapping("/{code}/exportPdf")
+    public void exportPdf(@PathVariable("code") String code, @RequestBody(required = false) Map<String, Object> body,
+        HttpServletResponse response) throws Exception
+    {
+        Map<String, Object> parsed = parseBody(body);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> params = (Map<String, Object>) parsed.get("params");
+        String accessPwd = (String) parsed.get("accessPwd");
+        String captchaCode = (String) parsed.get("captchaCode");
+        String captchaUuid = (String) parsed.get("captchaUuid");
+        queryService.openExportPdf(code, params, accessPwd, response, captchaCode, captchaUuid);
+    }
+
     @RateLimiter(time = 60, count = 60, limitType = LimitType.IP)
     @PostMapping("/{code}/dist")
     public AjaxResult dist(@PathVariable("code") String code, @RequestBody(required = false) Map<String, Object> body)

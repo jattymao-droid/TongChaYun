@@ -8,10 +8,10 @@
       class="mb16"
     />
 
-    <div class="preview-wrap">
-      <div class="hero">
-        <h1>{{ survey.surveyName || '问卷预览' }}</h1>
-        <p v-if="survey.surveyDesc">{{ survey.surveyDesc }}</p>
+    <div class="preview-wrap" :style="pageStyle">
+      <div class="hero" :style="heroStyle" v-if="showHero">
+        <h1 v-if="showTitle" :style="titleStyle">{{ survey.surveyName || '问卷预览' }}</h1>
+        <p v-if="showDesc && survey.surveyDesc">{{ survey.surveyDesc }}</p>
       </div>
       <div class="panel">
         <div v-if="(fillMode === 'step' || fillMode === 'pages') && displayQuestions.length" class="step-progress">
@@ -67,6 +67,12 @@ import {
   withoutEmbeddedSignatures,
   expandWithBoundSignatures
 } from '@/utils/bizSurveyQuestion'
+import {
+  normalizeSurveyTheme,
+  buildSurveyPageStyle,
+  buildSurveyHeroStyle,
+  buildSurveyTitleStyle
+} from '@/utils/bizSurveyTheme'
 
 export default {
   name: 'BizSurveyPreview',
@@ -80,6 +86,7 @@ export default {
       loading: false,
       surveyId: null,
       survey: {},
+      theme: {},
       questions: [],
       form: {},
       tick: 0,
@@ -88,6 +95,27 @@ export default {
     }
   },
   computed: {
+    themeNorm() {
+      return normalizeSurveyTheme(this.theme)
+    },
+    showTitle() {
+      return this.themeNorm.showTitle
+    },
+    showDesc() {
+      return this.themeNorm.showDesc
+    },
+    showHero() {
+      return this.showTitle || (this.showDesc && !!(this.survey && this.survey.surveyDesc))
+    },
+    pageStyle() {
+      return buildSurveyPageStyle(this.theme, process.env.VUE_APP_BASE_API)
+    },
+    heroStyle() {
+      return buildSurveyHeroStyle(this.theme)
+    },
+    titleStyle() {
+      return buildSurveyTitleStyle(this.theme)
+    },
     visibleQuestions() {
       void this.tick
       return resolveVisibleQuestions(this.questions, q => this.form[q._key])
@@ -205,6 +233,7 @@ export default {
         this.survey = data.survey || {}
         let theme = {}
         try { theme = this.survey.themeJson ? JSON.parse(this.survey.themeJson) : {} } catch (e) { theme = {} }
+        this.theme = theme
         this.fillMode = theme.fillMode === 'step' || theme.fillMode === 'pages' ? theme.fillMode : 'all'
         this.questions = (data.questions || []).map((q, i) => normalizeQuestion(q, i, { keyMode: 'preview' }))
         const form = {}
@@ -223,8 +252,17 @@ export default {
 <style scoped>
 .mb16 { margin-bottom: 16px; }
 .preview-wrap { max-width: 720px; margin: 0 auto; }
+.preview-wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 16px;
+  border-radius: 12px;
+  min-height: 320px;
+  box-sizing: border-box;
+}
 .hero { text-align: center; margin-bottom: 16px; }
-.hero h1 { margin: 0 0 8px; color: #1677ff; }
+.hero h1 { margin: 0 0 8px; color: var(--theme, #1677ff); }
+.hero p { margin: 0; color: #64748b; font-size: 14px; }
 .panel { background: #fff; border-radius: 12px; padding: 20px 16px; border: 1px solid #ebeef5; }
 .q-block { margin-bottom: 22px; }
 .actions { text-align: center; margin-top: 8px; display: flex; justify-content: center; gap: 10px; }

@@ -30,6 +30,8 @@ public class BizSurveyController extends BaseController
 {
     @Autowired
     private IBizSurveyService surveyService;
+    @Autowired
+    private com.ruoyi.biz.service.IBizPublishApproveService publishApproveService;
 
     @PreAuthorize("@ss.hasPermi('biz:survey:list')")
     @GetMapping("/list")
@@ -38,6 +40,13 @@ public class BizSurveyController extends BaseController
         startPage();
         List<BizSurvey> list = surveyService.selectBizSurveyList(survey);
         return getDataTable(list);
+    }
+
+    @PreAuthorize("@ss.hasPermi('biz:survey:edit')")
+    @GetMapping("/user-search")
+    public AjaxResult searchAdminUsers(String keyword)
+    {
+        return success(surveyService.searchUsersForAdmin(keyword));
     }
 
     @PreAuthorize("@ss.hasPermi('biz:survey:query')")
@@ -84,11 +93,7 @@ public class BizSurveyController extends BaseController
     @PostMapping("/publish/{surveyId}")
     public AjaxResult publish(@PathVariable Long surveyId)
     {
-        String code = surveyService.publish(surveyId);
-        Map<String, Object> data = new HashMap<>();
-        data.put("publicCode", code);
-        data.put("path", "/s/" + code);
-        return success(data);
+        return success(publishApproveService.requestOrPublish("survey", surveyId));
     }
 
     @PreAuthorize("@ss.hasPermi('biz:survey:publish')")
@@ -126,6 +131,14 @@ public class BizSurveyController extends BaseController
         }
         body.setAnswerId(answerId);
         return toAjax(surveyService.updateAnswerMeta(body));
+    }
+
+    @PreAuthorize("@ss.hasPermi('biz:survey:edit')")
+    @Log(title = "答卷批量标记", businessType = BusinessType.UPDATE)
+    @PutMapping("/answers/batch")
+    public AjaxResult batchUpdateAnswers(@RequestBody Map<String, Object> body)
+    {
+        return toAjax(surveyService.batchUpdateAnswerMeta(body));
     }
 
     @PreAuthorize("@ss.hasPermi('biz:survey:query')")
@@ -211,5 +224,34 @@ public class BizSurveyController extends BaseController
     public AjaxResult transfer(@PathVariable Long surveyId, @PathVariable Long targetUserId)
     {
         return toAjax(surveyService.transferOwnership(surveyId, targetUserId));
+    }
+
+    @PreAuthorize("@ss.hasPermi('biz:survey:edit')")
+    @GetMapping("/{surveyId}/admins")
+    public AjaxResult listAdmins(@PathVariable Long surveyId)
+    {
+        return success(surveyService.listSurveyAdmins(surveyId));
+    }
+
+    @PreAuthorize("@ss.hasPermi('biz:survey:edit')")
+    @Log(title = "问卷添加管理员", businessType = BusinessType.INSERT)
+    @PostMapping("/{surveyId}/admins")
+    public AjaxResult addAdmin(@PathVariable Long surveyId, @RequestBody java.util.Map<String, Object> body)
+    {
+        Long userId = null;
+        if (body != null && body.get("userId") != null && !"".equals(String.valueOf(body.get("userId"))))
+        {
+            userId = Long.valueOf(String.valueOf(body.get("userId")));
+        }
+        String keyword = body == null ? null : (body.get("keyword") == null ? null : String.valueOf(body.get("keyword")));
+        return toAjax(surveyService.addSurveyAdmin(surveyId, userId, keyword));
+    }
+
+    @PreAuthorize("@ss.hasPermi('biz:survey:edit')")
+    @Log(title = "问卷移除管理员", businessType = BusinessType.DELETE)
+    @DeleteMapping("/{surveyId}/admins/{userId}")
+    public AjaxResult removeAdmin(@PathVariable Long surveyId, @PathVariable Long userId)
+    {
+        return toAjax(surveyService.removeSurveyAdmin(surveyId, userId));
     }
 }

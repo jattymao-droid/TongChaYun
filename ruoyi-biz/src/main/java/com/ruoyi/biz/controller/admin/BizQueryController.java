@@ -35,6 +35,8 @@ public class BizQueryController extends BaseController
 {
     @Autowired
     private IBizQueryService queryService;
+    @Autowired
+    private com.ruoyi.biz.service.IBizPublishApproveService publishApproveService;
 
     @PreAuthorize("@ss.hasPermi('biz:query:list')")
     @GetMapping("/list")
@@ -94,6 +96,14 @@ public class BizQueryController extends BaseController
         queryService.exportRows(queryId, response);
     }
 
+    @PreAuthorize("@ss.hasPermi('biz:query:export') or @ss.hasPermi('biz:query:query')")
+    @Log(title = "Query PDF export", businessType = BusinessType.EXPORT)
+    @PostMapping("/exportPdf/{queryId}")
+    public void exportPdf(@PathVariable Long queryId, jakarta.servlet.http.HttpServletResponse response) throws Exception
+    {
+        queryService.exportRowsPdf(queryId, response);
+    }
+
     @PreAuthorize("@ss.hasPermi('biz:query:edit')")
     @Log(title = "查询字段配置", businessType = BusinessType.UPDATE)
     @PutMapping("/fields/{queryId}")
@@ -115,11 +125,7 @@ public class BizQueryController extends BaseController
     @PostMapping("/publish/{queryId}")
     public AjaxResult publish(@PathVariable Long queryId)
     {
-        String code = queryService.publish(queryId);
-        Map<String, Object> data = new HashMap<>();
-        data.put("publicCode", code);
-        data.put("path", "/q/" + code);
-        return success(data);
+        return success(publishApproveService.requestOrPublish("query", queryId));
     }
 
     @PreAuthorize("@ss.hasPermi('biz:query:publish')")
@@ -291,5 +297,41 @@ public class BizQueryController extends BaseController
     public AjaxResult transfer(@PathVariable Long queryId, @PathVariable Long targetUserId)
     {
         return toAjax(queryService.transferOwnership(queryId, targetUserId));
+    }
+
+    @PreAuthorize("@ss.hasPermi('biz:query:edit')")
+    @GetMapping("/user-search")
+    public AjaxResult searchAdminUsers(String keyword)
+    {
+        return success(queryService.searchUsersForAdmin(keyword));
+    }
+
+    @PreAuthorize("@ss.hasPermi('biz:query:edit')")
+    @GetMapping("/{queryId}/admins")
+    public AjaxResult listAdmins(@PathVariable Long queryId)
+    {
+        return success(queryService.listQueryAdmins(queryId));
+    }
+
+    @PreAuthorize("@ss.hasPermi('biz:query:edit')")
+    @Log(title = "查询添加协作者", businessType = BusinessType.INSERT)
+    @PostMapping("/{queryId}/admins")
+    public AjaxResult addAdmin(@PathVariable Long queryId, @RequestBody java.util.Map<String, Object> body)
+    {
+        Long userId = null;
+        if (body != null && body.get("userId") != null && !"".equals(String.valueOf(body.get("userId"))))
+        {
+            userId = Long.valueOf(String.valueOf(body.get("userId")));
+        }
+        String keyword = body == null ? null : (body.get("keyword") == null ? null : String.valueOf(body.get("keyword")));
+        return toAjax(queryService.addQueryAdmin(queryId, userId, keyword));
+    }
+
+    @PreAuthorize("@ss.hasPermi('biz:query:edit')")
+    @Log(title = "查询移除协作者", businessType = BusinessType.DELETE)
+    @org.springframework.web.bind.annotation.DeleteMapping("/{queryId}/admins/{userId}")
+    public AjaxResult removeAdmin(@PathVariable Long queryId, @PathVariable Long userId)
+    {
+        return toAjax(queryService.removeQueryAdmin(queryId, userId));
     }
 }

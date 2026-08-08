@@ -19,10 +19,16 @@ public final class BizAccessLogHelper
 
     public static void log(String targetType, Long targetId, String publicCode, String action)
     {
-        log(targetType, targetId, publicCode, action, null);
+        log(targetType, targetId, publicCode, action, null, null);
     }
 
     public static void log(String targetType, Long targetId, String publicCode, String action, String detailJson)
+    {
+        log(targetType, targetId, publicCode, action, detailJson, null);
+    }
+
+    public static void log(String targetType, Long targetId, String publicCode, String action,
+        String detailJson, String channelCode)
     {
         try
         {
@@ -46,6 +52,10 @@ public final class BizAccessLogHelper
                 detailJson = detailJson.substring(0, 2000);
             }
             log.setDetailJson(detailJson);
+            if (StringUtils.isNotEmpty(channelCode))
+            {
+                log.setChannelCode(StringUtils.substring(channelCode.trim(), 0, 64));
+            }
             mapper.insertAccessLog(log);
         }
         catch (Exception ignored)

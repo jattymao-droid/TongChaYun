@@ -25,4 +25,10 @@ public interface BizSurveyMapper
     int increaseViewCount(Long surveyId);
 
     int transferOwner(BizSurvey survey);
+
+    List<BizSurvey> selectDuePublish();
+
+    List<BizSurvey> selectDueExpire();
+
+    List<BizSurvey> selectDueRemind();
 }

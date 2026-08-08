@@ -82,4 +82,19 @@ public class BizNotifyServiceImpl implements IBizNotifyService
         n.setContent(content.toString());
         notifyMapper.insertNotify(n);
     }
+
+    @Override
+    public void createSimpleNotify(Long userId, Long surveyId, String title, String content)
+    {
+        if (userId == null || StringUtils.isEmpty(title))
+        {
+            return;
+        }
+        BizSurveyNotify n = new BizSurveyNotify();
+        n.setUserId(userId);
+        n.setSurveyId(surveyId);
+        n.setTitle(StringUtils.substring(title, 0, 200));
+        n.setContent(StringUtils.substring(StringUtils.nvl(content, ""), 0, 500));
+        notifyMapper.insertNotify(n);
+    }
 }

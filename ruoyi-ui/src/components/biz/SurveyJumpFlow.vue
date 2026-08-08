@@ -205,7 +205,7 @@ export default {
   padding: 0 8px;
   border-radius: 999px;
   background: #e8f0fe;
-  color: #2b6de5;
+  color: #1d4ed8;
   font-size: 12px;
   font-weight: 700;
   display: inline-flex;
@@ -255,7 +255,7 @@ export default {
 }
 .edge-tag {
   font-size: 11px;
-  color: #2b6de5;
+  color: #1d4ed8;
   background: #eef4ff;
   border-radius: 999px;
   padding: 1px 8px;

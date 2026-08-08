@@ -8,11 +8,11 @@
     @click="goHome"
     @keyup.enter="goHome"
   >
-    <span class="sidebar-logo-mark">
+    <span class="sidebar-logo-mark" aria-hidden="true">
       <img v-if="logo" :src="logo" class="sidebar-logo" :alt="displayTitle" />
       <span v-else class="sidebar-logo-fallback">{{ titleInitial }}</span>
     </span>
-    <span v-show="!collapse" class="sidebar-title">{{ displayTitle }}</span>
+    <span class="sidebar-title" :aria-hidden="collapse ? 'true' : 'false'">{{ displayTitle }}</span>
   </div>
 </template>
 
@@ -65,13 +65,17 @@ export default {
   overflow: hidden;
   user-select: none;
   gap: 11px;
-  transition: background 0.18s ease;
+  transition:
+    padding 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    gap 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    justify-content 0.28s ease,
+    background 0.18s ease;
 
   &:hover {
     background: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%);
 
     .sidebar-logo-mark {
-      transform: translateY(-1px);
+      transform: translateY(-1px) scale(1.02);
       box-shadow:
         0 1px 2px rgba(15, 23, 42, 0.06),
         0 8px 18px rgba(29, 78, 216, 0.22);
@@ -100,7 +104,13 @@ export default {
       0 1px 2px rgba(15, 23, 42, 0.05),
       0 4px 12px rgba(29, 78, 216, 0.16);
     overflow: hidden;
-    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    transition:
+      width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+      height 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+      flex-basis 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+      border-radius 0.28s ease,
+      transform 0.18s ease,
+      box-shadow 0.18s ease;
   }
 
   .sidebar-logo {
@@ -108,7 +118,8 @@ export default {
     height: 100%;
     display: block;
     object-fit: contain;
-    border-radius: 10px;
+    border-radius: inherit;
+    transition: border-radius 0.28s ease, opacity 0.28s ease, transform 0.28s ease;
   }
 
   .sidebar-logo-fallback {
@@ -122,11 +133,13 @@ export default {
     font-size: 15px;
     font-weight: 700;
     letter-spacing: 0;
+    border-radius: inherit;
   }
 
   .sidebar-title {
     flex: 1 1 auto;
     min-width: 0;
+    max-width: 160px;
     margin: 0;
     padding: 0;
     color: #0f172a;
@@ -139,7 +152,13 @@ export default {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    transition: color 0.18s ease;
+    opacity: 1;
+    transform: translateX(0);
+    transition:
+      opacity 0.22s ease,
+      max-width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+      transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+      color 0.18s ease;
   }
 
   &.collapse {
@@ -154,9 +173,11 @@ export default {
       border-radius: 11px;
     }
 
-    .sidebar-logo,
-    .sidebar-logo-fallback {
-      border-radius: 11px;
+    .sidebar-title {
+      max-width: 0;
+      opacity: 0;
+      transform: translateX(-8px);
+      pointer-events: none;
     }
   }
 }

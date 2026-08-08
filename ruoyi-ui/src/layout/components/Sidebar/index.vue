@@ -61,7 +61,7 @@ export default {
       return this.isLight ? '#4e5969' : variables.menuColor
     },
     activeColor() {
-      return this.isLight ? '#2b6de5' : this.settings.theme
+      return this.isLight ? '#1d4ed8' : this.settings.theme
     }
   }
 }

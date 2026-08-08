@@ -12,6 +12,7 @@
         <button type="button" class="tab" @click="goStats">统计</button>
       </div>
       <div class="top-right">
+        <el-button size="small" icon="el-icon-time" @click="openHistory" v-hasPermi="['biz:survey:query']">历史</el-button>
         <el-button size="small" icon="el-icon-view" @click="goPreview">试答</el-button>
         <el-button size="small" type="primary" plain :loading="saving" @click="handleSave" v-hasPermi="['biz:survey:edit']">保存</el-button>
         <el-button size="small" type="primary" :loading="publishing" @click="goPublish" v-hasPermi="['biz:survey:publish']">发布</el-button>
@@ -387,12 +388,28 @@
         <el-button type="primary" @click="applyBatchOptions">应用</el-button>
       </span>
     </el-dialog>
+
+    <el-dialog title="设计历史版本" :visible.sync="historyOpen" width="640px" append-to-body>
+      <el-table :data="historyList" size="mini" border v-loading="historyLoading">
+        <el-table-column label="版本" prop="revNo" width="70" align="center" />
+        <el-table-column label="说明" prop="remark" min-width="160" show-overflow-tooltip />
+        <el-table-column label="操作人" prop="createBy" width="100" />
+        <el-table-column label="时间" prop="createTime" width="160" />
+        <el-table-column label="操作" width="90" align="center">
+          <template slot-scope="scope">
+            <el-button type="text" @click="restoreHistory(scope.row)">恢复</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div slot="footer"><el-button @click="historyOpen = false">关 闭</el-button></div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
 import draggable from 'vuedraggable'
 import { getSurvey, saveSurveyQuestions, updateSurvey, publishSurvey } from '@/api/biz/survey'
+import { listSurveyRevisions, rollbackSurveyRevision } from '@/api/biz/version'
 import SurveyJumpFlow from '@/components/biz/SurveyJumpFlow'
 import Editor from '@/components/Editor'
 
@@ -410,6 +427,9 @@ export default {
     return {
       loading: false,
       saving: false,
+      historyOpen: false,
+      historyLoading: false,
+      historyList: [],
       publishing: false,
       surveyId: null,
       survey: {},
@@ -967,6 +987,9 @@ export default {
           props.visibleIf = { sourceSort: Number(q._visibleIfSource), value: String(q._visibleIfValue) }
         }
         return {
+          questionId: (typeof q.questionId === 'number' || (typeof q.questionId === 'string' && /^\d+$/.test(q.questionId)))
+            ? Number(q.questionId)
+            : undefined,
           qType: q.qType,
           title: (q.title || '').trim(),
           required: this.isDisplayOnly(q.qType) ? '0' : (q.required || '0'),
@@ -1022,6 +1045,22 @@ export default {
     },
     saveForWizard() {
       return this.handleSave()
+    },
+    openHistory() {
+      this.historyOpen = true
+      this.historyLoading = true
+      listSurveyRevisions(this.surveyId).then(res => {
+        this.historyList = res.data || []
+      }).finally(() => { this.historyLoading = false })
+    },
+    restoreHistory(row) {
+      this.$modal.confirm('确认恢复到版本 #' + row.revNo + '？当前设计会先自动快照。').then(() => {
+        return rollbackSurveyRevision(this.surveyId, row.revId)
+      }).then(() => {
+        this.$modal.msgSuccess('已恢复')
+        this.historyOpen = false
+        return this.loadDetail()
+      }).catch(() => {})
     }
   }
 }
@@ -1029,7 +1068,7 @@ export default {
 
 <style scoped>
 .survey-studio {
-  --ss-blue: #2b6de5;
+  --ss-blue: #1d4ed8;
   /* 勿用负 margin：本页无 app-container，-20px 会顶进固定顶栏 */
   height: calc(100vh - var(--fixed-header-height, 90px));
   max-height: calc(100vh - var(--fixed-header-height, 90px));
@@ -1354,7 +1393,7 @@ export default {
   transition: color .15s, background .15s, height .15s;
 }
 .insert-gap:hover {
-  color: var(--ss-blue); background: rgba(43,109,229,.06); height: 32px;
+  color: var(--ss-blue); background: rgba(29,78,216,.06); height: 32px;
 }
 .insert-gap i { font-size: 12px; }
 </style>

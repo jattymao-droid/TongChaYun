@@ -22,4 +22,10 @@ public interface BizQueryMapper
     int increaseSearchCount(Long queryId);
 
     int transferOwner(BizQuery query);
+
+    List<BizQuery> selectDuePublish();
+
+    List<BizQuery> selectDueExpire();
+
+    List<BizQuery> selectDueRemind();
 }

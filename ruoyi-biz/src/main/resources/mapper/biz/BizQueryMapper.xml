@@ -27,13 +27,20 @@
         <result property="remark" column="remark"/>
         <result property="ownerName" column="owner_name"/>
         <result property="ownerNickName" column="owner_nick_name"/>
+        <result property="startTime" column="start_time"/>
+        <result property="endTime" column="end_time"/>
+        <result property="publishAt" column="publish_at"/>
+        <result property="remindHours" column="remind_hours"/>
+        <result property="remindSent" column="remind_sent"/>
+        <result property="remindMail" column="remind_mail"/>
     </resultMap>
 
     <sql id="selectVo">
         select query_id, query_name, query_desc, public_code, status, source_file, sheet_name,
                row_count, access_pwd, view_count, search_count, parse_status, parse_msg, need_captcha, daily_limit,
                create_user_id, dept_id, create_by, create_time, update_by, update_time, remark,
-               null::varchar as owner_name, null::varchar as owner_nick_name
+               null::varchar as owner_name, null::varchar as owner_nick_name,
+               start_time, end_time, publish_at, remind_hours, remind_sent, remind_mail
         from biz_query
     </sql>
 
@@ -42,7 +49,8 @@
                q.row_count, q.access_pwd, q.view_count, q.search_count, q.parse_status, q.parse_msg, q.need_captcha, q.daily_limit,
                q.create_user_id, q.dept_id,
                q.create_by, q.create_time, q.update_by, q.update_time, q.remark,
-               u.user_name as owner_name, u.nick_name as owner_nick_name
+               u.user_name as owner_name, u.nick_name as owner_nick_name,
+               q.start_time, q.end_time, q.publish_at, q.remind_hours, q.remind_sent, q.remind_mail
         from biz_query q
         left join sys_user u on u.user_id = q.create_user_id
     </sql>
@@ -65,7 +73,16 @@
             <if test="createBy != null and createBy != ''">and (q.create_by like concat('%', #{createBy}, '%') or u.user_name like concat('%', #{createBy}, '%') or u.nick_name like concat('%', #{createBy}, '%'))</if>
             <if test="publicCode != null and publicCode != ''">and q.public_code = #{publicCode}</if>
             <if test="deptId != null">and q.dept_id = #{deptId}</if>
-            ${params.dataScope}
+            and (
+                1 = 1
+                ${params.dataScope}
+                <if test="params.loginUserId != null">
+                    or exists (
+                        select 1 from biz_query_admin qa
+                        where qa.query_id = q.query_id and qa.user_id = #{params.loginUserId}
+                    )
+                </if>
+            )
         </where>
         order by q.query_id desc
     </select>
@@ -74,12 +91,15 @@
         insert into biz_query (
             query_name, query_desc, public_code, status, source_file, sheet_name, row_count,
             access_pwd, view_count, search_count, parse_status, parse_msg, need_captcha, daily_limit,
-            create_user_id, dept_id, create_by, create_time, remark
+            create_user_id, dept_id, create_by, create_time, remark,
+            start_time, end_time, publish_at, remind_hours, remind_sent, remind_mail
         ) values (
             #{queryName}, #{queryDesc}, #{publicCode}, #{status}, #{sourceFile}, #{sheetName}, #{rowCount},
             #{accessPwd}, #{viewCount}, #{searchCount}, #{parseStatus}, #{parseMsg},
             coalesce(#{needCaptcha}, '0'), coalesce(#{dailyLimit}, 0),
-            #{createUserId}, #{deptId}, #{createBy}, now(), #{remark}
+            #{createUserId}, #{deptId}, #{createBy}, now(), #{remark},
+            #{startTime}, #{endTime}, #{publishAt}, coalesce(#{remindHours}, 24),
+            coalesce(#{remindSent}, '0'), coalesce(#{remindMail}, '0')
         )
     </insert>
 
@@ -105,10 +125,45 @@
             <if test="createBy != null and createBy != ''">create_by = #{createBy},</if>
             <if test="updateBy != null">update_by = #{updateBy},</if>
             <if test="remark != null">remark = #{remark},</if>
+            <if test="startTime != null">start_time = #{startTime},</if>
+            <if test="endTime != null">end_time = #{endTime},</if>
+            <if test="params != null and params.clearStartTime != null">start_time = null,</if>
+            <if test="params != null and params.clearEndTime != null">end_time = null,</if>
+            <if test="publishAt != null">publish_at = #{publishAt},</if>
+            <if test="params != null and params.clearPublishAt != null">publish_at = null,</if>
+            <if test="remindHours != null">remind_hours = #{remindHours},</if>
+            <if test="remindSent != null">remind_sent = #{remindSent},</if>
+            <if test="remindMail != null">remind_mail = #{remindMail},</if>
             update_time = now()
         </set>
         where query_id = #{queryId}
     </update>
+
+    <select id="selectDuePublish" resultMap="BizQueryResult">
+        <include refid="selectVo"/>
+        where status = '0' and publish_at is not null and publish_at &lt;= now()
+        order by publish_at asc
+        limit 100
+    </select>
+
+    <select id="selectDueExpire" resultMap="BizQueryResult">
+        <include refid="selectVo"/>
+        where status = '1' and end_time is not null and end_time &lt;= now()
+        order by end_time asc
+        limit 100
+    </select>
+
+    <select id="selectDueRemind" resultMap="BizQueryResult">
+        <include refid="selectVo"/>
+        where status = '1'
+          and end_time is not null
+          and coalesce(remind_hours, 0) &gt; 0
+          and coalesce(remind_sent, '0') = '0'
+          and end_time &gt; now()
+          and end_time &lt;= now() + (coalesce(remind_hours, 24) || ' hours')::interval
+        order by end_time asc
+        limit 100
+    </select>
 
     <delete id="deleteBizQueryByIds" parameterType="Long">
         delete from biz_query where query_id in

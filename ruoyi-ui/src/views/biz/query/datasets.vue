@@ -365,27 +365,27 @@ export default {
 .mb16 { margin-bottom: 16px; }
 .mt16 { margin-top: 16px; }
 .card-head { display: flex; align-items: center; justify-content: space-between; }
-.desc { color: #606266; font-size: 13px; line-height: 1.6; margin: 0 0 14px; }
+.desc { color: var(--biz-muted); font-size: 13px; line-height: 1.6; margin: 0 0 14px; }
 .header-chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .chip { margin: 0; }
 .upload-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .rel-block {
-  border: 1px solid #ebeef5;
-  border-radius: 10px;
+  border: 1px solid var(--biz-line);
+  border-radius: var(--biz-radius-sm);
   padding: 12px 14px;
   margin-bottom: 12px;
-  background: #fafbfc;
+  background: var(--biz-bg-soft);
 }
 .rel-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.rel-title { font-weight: 600; color: #303133; margin-right: auto; }
+.rel-title { font-weight: 600; color: var(--biz-ink); margin-right: auto; }
 .rel-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
-.join-label { color: #909399; font-size: 13px; }
-.keys-title { font-size: 12px; color: #909399; margin: 4px 0 8px; }
+.join-label { color: var(--biz-muted-soft); font-size: 13px; }
+.keys-title { font-size: 12px; color: var(--biz-muted-soft); margin: 4px 0 8px; }
 .key-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
-.eq { color: #606266; font-weight: 600; }
+.eq { color: var(--biz-muted); font-weight: 600; }
 .gen-bar { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.gen-title { font-weight: 600; color: #303133; margin-bottom: 4px; }
-.gen-desc { font-size: 13px; color: #606266; line-height: 1.5; }
+.gen-title { font-weight: 600; color: var(--biz-ink); margin-bottom: 4px; }
+.gen-desc { font-size: 13px; color: var(--biz-muted); line-height: 1.5; }
 .gen-hint { margin-top: 8px; font-size: 12px; color: #67c23a; }
 .gen-actions { display: flex; gap: 8px; flex-shrink: 0; }
 

@@ -1,6 +1,9 @@
 <template>
-  <div :class="embedded ? 'page-embed' : 'app-container'">
-    <el-page-header v-if="!embedded" @back="goBack" :content="'页面设计 - ' + (queryName || '')" class="mb12" />
+  <div :class="embedded ? 'page-embed' : 'biz-page'">
+    <div v-if="!embedded" class="biz-page-head">
+      <el-page-header @back="goBack" :content="'页面设计 - ' + (queryName || '')" />
+    </div>
+    <div :class="embedded ? '' : 'biz-panel'">
     <el-tabs v-model="activeTab">
       <el-tab-pane label="条件页" name="form" />
       <el-tab-pane label="结果页" name="result" />
@@ -369,6 +372,7 @@
         </el-card>
       </el-col>
     </el-row>
+    </div>
   </div>
 </template>
 

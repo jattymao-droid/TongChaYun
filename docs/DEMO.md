@@ -33,6 +33,8 @@ psql -U postgres -d ry_vue -f sql/biz_phase25_query_p2.sql
 psql -U postgres -d ry_vue -f sql/biz_phase26_user_admin.sql
 psql -U postgres -d ry_vue -f sql/biz_phase27_basic_settings.sql
 psql -U postgres -d ry_vue -f sql/biz_mail_reset_password.sql
+psql -U postgres -d ry_vue -f sql/biz_phase28_reach.sql
+psql -U postgres -d ry_vue -f sql/biz_phase29_version.sql
 psql -U postgres -d ry_vue -f sql/biz_survey_question_types.sql
 psql -U postgres -d ry_vue -f sql/biz_survey_question_types_extra.sql
 psql -U postgres -d ry_vue -f sql/biz_register_role.sql
@@ -60,6 +62,10 @@ cd ruoyi-ui && npm install && npm run dev
 | 公开填写 | `/s/{publicCode}` |
 | 统计饼图 | 问卷 → 统计 |
 | Webhook | 问卷编辑 → Webhook |
+| 数据/设计版本与协作者 | 查询「数据版本」「协作者」；问卷设计「历史」；配置 sys.biz.publishApprove |
+| 预约发布 / 截止提醒 / 答卷邮件 | 问卷或查询「设置」发布步；基础设置开 SMTP；企微机器人可贴 Webhook |
+| 风控看板 / 漏斗 / 黑名单 | 问卷「统计」：漏斗、渠道 UV/转化、IP/设备风控；一键拉黑后公开页同 IP/设备提交被拒 |
+| 打印 / 成绩单 PDF / 报名凭证 | 查询结果页「打印」「导出 PDF」；查询列表「导出 PDF」；问卷成功页凭证号 TCY-{code}-{answerId} 可打印 |
 | 查询分布图 | 查询 → 预览 → 字段分布 |
 | 访问统计 | 列表浏览/查询次数；看板公开查询次数与今日 UV |
 | 公开导出 | 查询公开页 / H5「导出」按条件下载 Excel |

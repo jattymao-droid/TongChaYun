@@ -202,34 +202,38 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px;
-  background: #f7f9fb;
-  border-bottom: 1px solid #eee;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--biz-line, #e8ecf2);
   font-size: 13px;
   font-weight: 600;
-  color: #333;
+  color: var(--biz-ink, #0f172a);
 }
 .notice-tabs { display: flex; gap: 12px; align-items: center; }
 .notice-tabs span { cursor: pointer; color: #909399; font-weight: 500; position: relative; }
-.notice-tabs span.on { color: #303133; font-weight: 600; }
+.notice-tabs span.on { color: var(--biz-accent, #1d4ed8); font-weight: 600; }
 .notice-tabs .tab-n {
   margin-left: 4px; background: #f56c6c; color: #fff; border-radius: 8px;
   font-size: 10px; padding: 0 4px; font-weight: 600;
 }
 .notice-popover .notice-mark-all {
-  font-size: 12px; color: #409EFF; font-weight: normal; cursor: pointer;
+  font-size: 12px; color: var(--biz-accent, #1d4ed8); font-weight: normal; cursor: pointer;
 }
-.notice-popover .notice-mark-all:hover { color: #2b7cc1; }
+.notice-popover .notice-mark-all:hover { color: #1e40af; }
 .notice-popover .notice-loading,
 .notice-popover .notice-empty {
   padding: 24px; text-align: center; color: #bbb; font-size: 12px; line-height: 1.8;
 }
 .notice-popover .notice-item {
   display: flex; align-items: center; gap: 8px;
-  padding: 10px 14px; border-bottom: 1px solid #f5f5f5;
+  padding: 10px 14px; border-bottom: 1px solid #f1f5f9;
   cursor: pointer; transition: background 0.15s;
 }
 .notice-popover .notice-item:last-child { border-bottom: none; }
-.notice-popover .notice-item:hover { background: #f7f9fb; }
+.notice-popover .notice-item:hover { background: #f8fafc; }
+.notice-popover .notice-item:not(.is-read) {
+  background: linear-gradient(90deg, #f8fbff, #fff);
+  box-shadow: inset 3px 0 0 var(--biz-accent, #1d4ed8);
+}
 .notice-popover .notice-item.is-read .notice-tag,
 .notice-popover .notice-item.is-read .notice-item-title,
 .notice-popover .notice-item.is-read .notice-item-date { opacity: 0.45; filter: grayscale(1); color: #999; }
@@ -240,8 +244,8 @@ export default {
 }
 .notice-popover .notice-item-date { flex-shrink: 0; font-size: 11px; color: #bbb; }
 .notice-footer {
-  padding: 10px 14px; text-align: center; font-size: 12px; color: #409EFF;
-  border-top: 1px solid #eee; cursor: pointer;
+  padding: 10px 14px; text-align: center; font-size: 12px; color: var(--biz-accent, #1d4ed8);
+  border-top: 1px solid var(--biz-line, #e8ecf2); cursor: pointer;
 }
-.notice-footer:hover { background: #f7f9fb; }
+.notice-footer:hover { background: var(--biz-accent-soft, #eff6ff); }
 </style>

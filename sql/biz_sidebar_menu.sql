@@ -1,5 +1,5 @@
 -- 通查云: menu labels aligned with workbench sidebar UX
-UPDATE sys_menu SET menu_name = '最近修改', icon = 'time', order_num = 0
+UPDATE sys_menu SET menu_name = '仪表盘', icon = 'dashboard', order_num = 0
 WHERE menu_id = 2003;
 
 UPDATE sys_menu SET menu_name = '我的查询', icon = 'search', order_num = 1

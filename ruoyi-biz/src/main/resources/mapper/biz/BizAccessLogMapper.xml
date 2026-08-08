@@ -11,12 +11,13 @@
         <result property="clientIp" column="client_ip"/>
         <result property="userAgent" column="user_agent"/>
         <result property="detailJson" column="detail_json"/>
+        <result property="channelCode" column="channel_code"/>
         <result property="createTime" column="create_time"/>
     </resultMap>
 
     <insert id="insertAccessLog" parameterType="BizAccessLog" useGeneratedKeys="true" keyProperty="logId">
-        insert into biz_access_log (target_type, target_id, public_code, action, client_ip, user_agent, detail_json, create_time)
-        values (#{targetType}, #{targetId}, #{publicCode}, #{action}, #{clientIp}, #{userAgent}, #{detailJson}, now())
+        insert into biz_access_log (target_type, target_id, public_code, action, client_ip, user_agent, detail_json, channel_code, create_time)
+        values (#{targetType}, #{targetId}, #{publicCode}, #{action}, #{clientIp}, #{userAgent}, #{detailJson}, #{channelCode}, now())
     </insert>
 
     <select id="countDistinctIp" resultType="Long">
@@ -42,7 +43,7 @@
     </select>
 
     <select id="selectByTarget" resultMap="AccessLogResult">
-        select log_id, target_type, target_id, public_code, action, client_ip, user_agent, detail_json, create_time
+        select log_id, target_type, target_id, public_code, action, client_ip, user_agent, detail_json, channel_code, create_time
         from biz_access_log
         where target_type = #{targetType}
           and target_id = #{targetId}
@@ -51,5 +52,36 @@
         </if>
         order by create_time desc, log_id desc
         limit #{limit}
+    </select>
+
+    <select id="countDistinctIpByTarget" resultType="Long">
+        select count(distinct client_ip)
+        from biz_access_log
+        where target_type = #{targetType}
+          and target_id = #{targetId}
+          and action = #{action}
+          and client_ip is not null and client_ip &lt;&gt; ''
+    </select>
+
+    <select id="selectFunnel" resultType="java.util.HashMap">
+        select action as "action",
+               count(*)::bigint as "events",
+               count(distinct client_ip)::bigint as "uv"
+        from biz_access_log
+        where target_type = #{targetType}
+          and target_id = #{targetId}
+          and action in
+          <foreach collection="actions" item="a" open="(" separator="," close=")">#{a}</foreach>
+        group by action
+    </select>
+
+    <select id="selectChannelUv" resultType="java.util.HashMap">
+        select coalesce(nullif(trim(channel_code), ''), '(默认)') as "channelCode",
+               count(distinct client_ip)::bigint as "viewUv"
+        from biz_access_log
+        where target_type = #{targetType}
+          and target_id = #{targetId}
+          and action = #{action}
+        group by coalesce(nullif(trim(channel_code), ''), '(默认)')
     </select>
 </mapper>

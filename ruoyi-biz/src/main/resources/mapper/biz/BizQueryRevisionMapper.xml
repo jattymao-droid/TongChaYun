@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.biz.mapper.BizQueryRevisionMapper">
+
+    <resultMap type="com.ruoyi.biz.domain.BizQueryRevision" id="RevResult">
+        <id property="revId" column="rev_id"/>
+        <result property="queryId" column="query_id"/>
+        <result property="revNo" column="rev_no"/>
+        <result property="rowCount" column="row_count"/>
+        <result property="fieldsJson" column="fields_json"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <resultMap type="com.ruoyi.biz.domain.BizQueryRow" id="RowResult">
+        <result property="rowNo" column="row_no"/>
+        <result property="rowData" column="row_data"/>
+    </resultMap>
+
+    <select id="selectMaxRevNo" resultType="Integer">
+        select coalesce(max(rev_no), 0) from biz_query_revision where query_id = #{queryId}
+    </select>
+
+    <insert id="insertRevision" parameterType="com.ruoyi.biz.domain.BizQueryRevision" useGeneratedKeys="true" keyProperty="revId">
+        insert into biz_query_revision (query_id, rev_no, row_count, fields_json, create_by, create_time, remark)
+        values (#{queryId}, #{revNo}, #{rowCount}, #{fieldsJson}, #{createBy}, now(), #{remark})
+    </insert>
+
+    <insert id="batchInsertRows">
+        insert into biz_query_revision_row (rev_id, row_no, row_data) values
+        <foreach collection="list" item="item" separator=",">
+            (#{revId}, #{item.rowNo}, #{item.rowData}::jsonb)
+        </foreach>
+    </insert>
+
+    <select id="selectByQueryId" resultMap="RevResult">
+        select rev_id, query_id, rev_no, row_count, fields_json, create_by, create_time, remark
+        from biz_query_revision
+        where query_id = #{queryId}
+        order by rev_no desc
+        limit 20
+    </select>
+
+    <select id="selectById" resultMap="RevResult">
+        select rev_id, query_id, rev_no, row_count, fields_json, create_by, create_time, remark
+        from biz_query_revision where rev_id = #{revId}
+    </select>
+
+    <select id="selectByQueryAndRevNo" resultMap="RevResult">
+        select rev_id, query_id, rev_no, row_count, fields_json, create_by, create_time, remark
+        from biz_query_revision where query_id = #{queryId} and rev_no = #{revNo}
+    </select>
+
+    <select id="selectRowsByRevId" resultMap="RowResult">
+        select row_no, row_data::text as row_data
+        from biz_query_revision_row
+        where rev_id = #{revId}
+        order by row_no
+    </select>
+
+    <select id="selectOldRevIds" resultType="Long">
+        select rev_id from biz_query_revision
+        where query_id = #{queryId}
+        order by rev_no desc
+        offset #{keep}
+    </select>
+
+    <delete id="deleteRowsByRevIds">
+        delete from biz_query_revision_row where rev_id in
+        <foreach collection="revIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <delete id="deleteByIds">
+        delete from biz_query_revision where rev_id in
+        <foreach collection="revIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+</mapper>

@@ -29,4 +29,12 @@ public interface BizSurveyAnswerMapper
     java.util.List<java.util.Map<String, Object>> selectChannelStats(Long surveyId);
 
     java.util.List<java.util.Map<String, Object>> selectDailyStats(Long surveyId);
+
+    java.util.List<java.util.Map<String, Object>> selectRiskByIp(Long surveyId);
+
+    java.util.List<java.util.Map<String, Object>> selectRiskByDevice(Long surveyId);
+
+    int markInvalidByIp(@Param("surveyId") Long surveyId, @Param("submitIp") String submitIp);
+
+    int markInvalidByDevice(@Param("surveyId") Long surveyId, @Param("clientToken") String clientToken);
 }

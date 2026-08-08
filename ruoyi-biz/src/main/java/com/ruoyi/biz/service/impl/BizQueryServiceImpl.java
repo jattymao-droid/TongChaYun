@@ -7,6 +7,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -45,12 +46,14 @@ import com.ruoyi.biz.mapper.BizQueryDatasetMapper;
 import com.ruoyi.biz.mapper.BizQueryDatasetRowMapper;
 import com.ruoyi.biz.mapper.BizQueryFieldMapper;
 import com.ruoyi.biz.mapper.BizAccessLogMapper;
+import com.ruoyi.biz.mapper.BizQueryAdminMapper;
 import com.ruoyi.biz.mapper.BizQueryMapper;
 import com.ruoyi.biz.mapper.BizQueryPageMapper;
 import com.ruoyi.biz.mapper.BizQueryRelationMapper;
 import com.ruoyi.biz.mapper.BizQueryRowMapper;
 import com.ruoyi.biz.service.IBizQueryService;
 import com.ruoyi.biz.service.IBizUserProjectService;
+import com.ruoyi.biz.service.IBizVersionService;
 import com.ruoyi.biz.utils.BizAccessLogHelper;
 import com.ruoyi.biz.utils.BizAccessPwdHelper;
 import com.ruoyi.biz.utils.BizMaskHelper;
@@ -58,6 +61,7 @@ import com.ruoyi.biz.utils.BizProjectScopeHelper;
 import com.ruoyi.biz.utils.BizQueryFieldInferHelper;
 import com.ruoyi.biz.utils.BizQueryIndexHelper;
 import com.ruoyi.biz.utils.BizQueryJoinHelper;
+import com.ruoyi.biz.utils.BizQueryPdfHelper;
 import com.ruoyi.biz.utils.BizQueryTemplates;
 import com.ruoyi.biz.utils.OpenQueryGuard;
 import com.ruoyi.common.config.RuoYiConfig;
@@ -100,11 +104,26 @@ public class BizQueryServiceImpl implements IBizQueryService
     private BizAccessLogMapper accessLogMapper;
     @Autowired
     private IBizUserProjectService userProjectService;
+    @Autowired
+    private BizQueryAdminMapper queryAdminMapper;
+    @Autowired
+    private IBizVersionService versionService;
 
     @Override
     @DataScope(deptAlias = "q", userAlias = "q", userField = "create_user_id", permission = "biz:query:list")
     public List<BizQuery> selectBizQueryList(BizQuery query)
     {
+        if (query.getParams() == null)
+        {
+            query.setParams(new java.util.HashMap<>());
+        }
+        try
+        {
+            query.getParams().put("loginUserId", SecurityUtils.getUserId());
+        }
+        catch (Exception ignored)
+        {
+        }
         List<BizQuery> list = queryMapper.selectBizQueryList(query);
         if (list != null)
         {
@@ -166,6 +185,11 @@ public class BizQueryServiceImpl implements IBizQueryService
         // ownership can only change via transferOwnership
         query.setCreateUserId(null);
         query.setCreateBy(null);
+        if (query.getEndTime() != null
+            && (db.getEndTime() == null || !query.getEndTime().equals(db.getEndTime())))
+        {
+            query.setRemindSent("0");
+        }
         return queryMapper.updateBizQuery(query);
     }
 
@@ -176,13 +200,14 @@ public class BizQueryServiceImpl implements IBizQueryService
         for (Long id : queryIds)
         {
             BizQuery db = requireQuery(id);
-            checkOwner(db);
+            assertQueryOwner(db);
             fieldMapper.deleteByQueryId(id);
             rowMapper.deleteByQueryId(id);
             pageMapper.deleteByQueryId(id);
             relationMapper.deleteByQueryId(id);
             datasetRowMapper.deleteByQueryId(id);
             datasetMapper.deleteByQueryId(id);
+            queryAdminMapper.deleteByQueryId(id);
         }
         return queryMapper.deleteBizQueryByIds(queryIds);
     }
@@ -459,6 +484,7 @@ public class BizQueryServiceImpl implements IBizQueryService
         upd.setPublicCode(code);
         upd.setStatus("1");
         upd.setUpdateBy(SecurityUtils.getUsername());
+        upd.getParams().put("clearPublishAt", true);
         queryMapper.updateBizQuery(upd);
         BizQueryIndexHelper.refreshEqIndexes(queryId, fields);
         return code;
@@ -552,6 +578,30 @@ public class BizQueryServiceImpl implements IBizQueryService
     }
 
     @Override
+    public void openExportPdf(String code, Map<String, Object> params, String accessPwd, HttpServletResponse response,
+        String captchaCode, String captchaUuid) throws Exception
+    {
+        BizQuery query = requirePublished(code);
+        assertAccessPwd(query.getAccessPwd(), accessPwd);
+        OpenQueryGuard.assertAccessAllowed(query, captchaCode, captchaUuid);
+        List<BizQueryField> fields = fieldMapper.selectFieldsByQueryId(query.getQueryId()).stream()
+            .filter(f -> "1".equals(f.getIsList()))
+            .collect(Collectors.toList());
+        if (fields.isEmpty())
+        {
+            fields = fieldMapper.selectFieldsByQueryId(query.getQueryId());
+        }
+        List<Map<String, String>> conditions = buildOpenConditions(query.getQueryId(), params);
+        requireOpenConditions(query.getQueryId(), conditions);
+        BizAccessLogHelper.log("query", query.getQueryId(), query.getPublicCode(), "export_pdf",
+            BizAccessLogHelper.buildQuerySearchDetail(fieldMapper.selectFieldsByQueryId(query.getQueryId()), params, 0, 1));
+        PageHelper.startPage(1, 500, false);
+        List<BizQueryRow> rows = maskRows(query.getQueryId(),
+            rowMapper.searchRows(query.getQueryId(), conditions, resolveOrderKey(query.getQueryId())));
+        BizQueryPdfHelper.writeScorecardPdf(query.getQueryName(), fields, rows, response);
+    }
+
+    @Override
     public void exportRows(Long queryId, HttpServletResponse response) throws Exception
     {
         BizQuery query = requireQuery(queryId);
@@ -559,6 +609,26 @@ public class BizQueryServiceImpl implements IBizQueryService
         List<BizQueryField> fields = fieldMapper.selectFieldsByQueryId(queryId);
         List<BizQueryRow> rows = rowMapper.selectAllRows(queryId);
         writeExcel(query.getQueryName(), query.getSheetName(), fields, rows, response);
+    }
+
+    @Override
+    public void exportRowsPdf(Long queryId, HttpServletResponse response) throws Exception
+    {
+        BizQuery query = requireQuery(queryId);
+        checkOwner(query);
+        List<BizQueryField> fields = fieldMapper.selectFieldsByQueryId(queryId).stream()
+            .filter(f -> "1".equals(f.getIsList()))
+            .collect(Collectors.toList());
+        if (fields.isEmpty())
+        {
+            fields = fieldMapper.selectFieldsByQueryId(queryId);
+        }
+        List<BizQueryRow> rows = rowMapper.selectAllRows(queryId);
+        if (rows != null && rows.size() > 500)
+        {
+            rows = rows.subList(0, 500);
+        }
+        BizQueryPdfHelper.writeScorecardPdf(query.getQueryName(), fields, rows, response);
     }
 
     private List<Map<String, String>> buildOpenConditions(Long queryId, Map<String, Object> params)
@@ -1534,6 +1604,7 @@ public class BizQueryServiceImpl implements IBizQueryService
             }
         }
 
+        versionService.snapshotQueryIfNeeded(queryId, "before-materialize");
         fieldMapper.deleteByQueryId(queryId);
         rowMapper.deleteByQueryId(queryId);
         if (!mr.fields.isEmpty())
@@ -1635,6 +1706,19 @@ public class BizQueryServiceImpl implements IBizQueryService
     @Override
     public void checkOwner(BizQuery query)
     {
+        Long uid = null;
+        try
+        {
+            uid = SecurityUtils.getUserId();
+        }
+        catch (Exception ignored)
+        {
+        }
+        if (uid != null && query.getQueryId() != null
+            && queryAdminMapper.countByQueryAndUser(query.getQueryId(), uid) > 0)
+        {
+            return;
+        }
         projectScopeHelper.assertAccess(query.getCreateUserId(), query.getDeptId(),
             "biz:query:list,biz:query:query,biz:query:edit", "无权操作该查询项目");
     }
@@ -1654,6 +1738,78 @@ public class BizQueryServiceImpl implements IBizQueryService
         upd.setCreateBy(String.valueOf(user.get("userName")));
         upd.setUpdateBy(SecurityUtils.getUsername());
         return queryMapper.transferOwner(upd);
+    }
+
+    private void assertQueryOwner(BizQuery query)
+    {
+        if (SecurityUtils.isAdmin())
+        {
+            return;
+        }
+        Long uid = SecurityUtils.getUserId();
+        if (uid != null && uid.equals(query.getCreateUserId()))
+        {
+            return;
+        }
+        throw new ServiceException("仅查询归属人可执行此操作");
+    }
+
+    @Override
+    public List<com.ruoyi.biz.domain.BizQueryAdmin> listQueryAdmins(Long queryId)
+    {
+        BizQuery query = requireQuery(queryId);
+        checkOwner(query);
+        return queryAdminMapper.selectByQueryId(queryId);
+    }
+
+    @Override
+    public List<Map<String, Object>> searchUsersForAdmin(String keyword)
+    {
+        return queryAdminMapper.searchUsers(StringUtils.trim(keyword));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int addQueryAdmin(Long queryId, Long userId, String keyword)
+    {
+        BizQuery query = requireQuery(queryId);
+        assertQueryOwner(query);
+        Long targetId = userId;
+        if (targetId == null)
+        {
+            String kw = StringUtils.trim(keyword);
+            if (StringUtils.isEmpty(kw))
+            {
+                throw new ServiceException("请输入用户名或手机号");
+            }
+            Map<String, Object> found = queryAdminMapper.findUserByNameOrPhone(kw);
+            if (found == null || found.isEmpty())
+            {
+                throw new ServiceException("未找到该用户名或手机号对应的用户");
+            }
+            targetId = Long.valueOf(String.valueOf(found.get("userId")));
+        }
+        if (targetId.equals(query.getCreateUserId()))
+        {
+            throw new ServiceException("归属人无需添加为协作者");
+        }
+        if (queryAdminMapper.countByQueryAndUser(queryId, targetId) > 0)
+        {
+            throw new ServiceException("该用户已是协作者");
+        }
+        com.ruoyi.biz.domain.BizQueryAdmin admin = new com.ruoyi.biz.domain.BizQueryAdmin();
+        admin.setQueryId(queryId);
+        admin.setUserId(targetId);
+        admin.setCreateBy(SecurityUtils.getUsername());
+        return queryAdminMapper.insert(admin);
+    }
+
+    @Override
+    public int removeQueryAdmin(Long queryId, Long userId)
+    {
+        BizQuery query = requireQuery(queryId);
+        assertQueryOwner(query);
+        return queryAdminMapper.deleteByQueryAndUser(queryId, userId);
     }
 
     private void assertAccessPwd(String expected, String actual)
@@ -1681,9 +1837,26 @@ public class BizQueryServiceImpl implements IBizQueryService
             throw new ServiceException("无效链接");
         }
         BizQuery query = queryMapper.selectBizQueryByCode(code);
-        if (query == null || !"1".equals(query.getStatus()))
+        if (query == null)
         {
             throw new ServiceException("查询不存在或未发布");
+        }
+        if ("3".equals(query.getStatus()))
+        {
+            throw new ServiceException("查询已结束");
+        }
+        if (!"1".equals(query.getStatus()))
+        {
+            throw new ServiceException("查询不存在或未发布");
+        }
+        Date now = new Date();
+        if (query.getStartTime() != null && now.before(query.getStartTime()))
+        {
+            throw new ServiceException("查询尚未开始");
+        }
+        if (query.getEndTime() != null && now.after(query.getEndTime()))
+        {
+            throw new ServiceException("查询已结束");
         }
         return query;
     }
