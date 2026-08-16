@@ -143,6 +143,19 @@
         </div>
         <p class="msg" v-if="error && unlocked && queryFields.length">{{ error }}</p>
       </main>
+
+      <aside
+        v-if="showNotice"
+        class="notice-box"
+        :class="[
+          'style-' + layout.formNoticeStyle,
+          'align-' + layout.formNoticeAlign,
+          { 'anim-fade-up anim-delay-2': layout.formAnim && layout.formNoticeAnim }
+        ]"
+      >
+        <div v-if="layout.formNoticeTitle" class="notice-title">{{ layout.formNoticeTitle }}</div>
+        <div class="notice-body" v-html="noticeHtml" />
+      </aside>
     </div>
 
     <footer class="site-footer">
@@ -176,7 +189,9 @@ import {
   buildFormPageStyle,
   resolveFormWidth,
   resolveFormColumns,
-  resolveAssetUrl
+  resolveAssetUrl,
+  noticeBoxVisible,
+  formatNoticeHtml
 } from '@/utils/bizQueryField'
 import { getCaptchaImage } from '@/api/open'
 
@@ -219,6 +234,8 @@ const contentWidth = computed(() => {
   return resolveFormWidth(layout.value, queryFields.value.length)
 })
 const fieldsCols = computed(() => resolveFormColumns(layout.value, queryFields.value.length))
+const showNotice = computed(() => noticeBoxVisible(layout.value))
+const noticeHtml = computed(() => formatNoticeHtml(layout.value.formNoticeText))
 
 function emptyFormValue(f) {
   const op = String((f && f.queryType) || '').toUpperCase()
@@ -507,6 +524,57 @@ onMounted(() => {
   width: 44px; height: 44px; margin: 0 auto 10px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   background: color-mix(in srgb, var(--theme) 12%, #fff); color: var(--theme); font-weight: 700;
+}
+.notice-box {
+  margin: 2px 0 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  line-height: 1.55;
+  font-size: 13px;
+  color: #334155;
+}
+.notice-box.align-center { text-align: center; }
+.notice-box.align-left { text-align: left; }
+.notice-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  color: #0f172a;
+}
+.notice-body { word-break: break-word; }
+.notice-box.style-info {
+  background: color-mix(in srgb, var(--theme, #1677ff) 8%, #fff);
+  border: 1px solid color-mix(in srgb, var(--theme, #1677ff) 22%, #e2e8f0);
+  border-left: 3px solid var(--theme, #1677ff);
+}
+.notice-box.style-tip {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-left: 3px solid #16a34a;
+}
+.notice-box.style-warn {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-left: 3px solid #d97706;
+}
+.notice-box.style-soft {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+.notice-box.style-quote {
+  background: transparent;
+  border: 0;
+  border-left: 3px solid #94a3b8;
+  border-radius: 0;
+  padding-left: 12px;
+  color: #475569;
+  font-style: italic;
+}
+.notice-box.style-plain {
+  background: transparent;
+  border: 0;
+  padding: 4px 2px;
+  color: #64748b;
 }
 
 @media (max-width: 640px) {

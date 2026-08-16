@@ -8,6 +8,7 @@ import com.ruoyi.common.constant.UserConstants;
 import com.ruoyi.common.core.domain.entity.SysUser;
 import com.ruoyi.common.core.domain.model.RegisterBody;
 import com.ruoyi.common.core.redis.RedisCache;
+import com.ruoyi.common.core.text.Convert;
 import com.ruoyi.common.exception.user.CaptchaException;
 import com.ruoyi.common.exception.user.CaptchaExpireException;
 import com.ruoyi.common.utils.DateUtils;
@@ -19,7 +20,6 @@ import com.ruoyi.framework.manager.factory.AsyncFactory;
 import com.ruoyi.system.service.ISysBasicService;
 import com.ruoyi.system.service.ISysConfigService;
 import com.ruoyi.system.service.ISysUserService;
-import com.ruoyi.common.core.text.Convert;
 
 /**
  * 注册校验方法
@@ -29,6 +29,9 @@ import com.ruoyi.common.core.text.Convert;
 @Component
 public class SysRegisterService
 {
+    private static final String PHONE_PATTERN = "^1[3-9]\\d{9}$";
+    private static final String EMAIL_PATTERN = "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$";
+
     @Autowired
     private ISysUserService userService;
 
@@ -46,7 +49,12 @@ public class SysRegisterService
      */
     public String register(RegisterBody registerBody)
     {
-        String msg = "", username = registerBody.getUsername(), password = registerBody.getPassword();
+        String msg = "";
+        String username = registerBody.getUsername();
+        String password = registerBody.getPassword();
+        String phonenumber = StringUtils.trim(registerBody.getPhonenumber());
+        String email = StringUtils.trim(registerBody.getEmail());
+
         SysUser sysUser = new SysUser();
         sysUser.setUserName(username);
 
@@ -62,13 +70,12 @@ public class SysRegisterService
         {
             try
             {
-                basicService.validateRegisterEmailCode(registerBody.getEmail(), registerBody.getEmailCode());
+                basicService.validateRegisterEmailCode(email, registerBody.getEmailCode());
             }
             catch (RuntimeException e)
             {
                 return e.getMessage();
             }
-            sysUser.setEmail(registerBody.getEmail());
         }
 
         if (StringUtils.isEmpty(username))
@@ -78,6 +85,22 @@ public class SysRegisterService
         else if (StringUtils.isEmpty(password))
         {
             msg = "用户密码不能为空";
+        }
+        else if (StringUtils.isEmpty(phonenumber))
+        {
+            msg = "手机号不能为空";
+        }
+        else if (!phonenumber.matches(PHONE_PATTERN))
+        {
+            msg = "手机号格式不正确";
+        }
+        else if (StringUtils.isEmpty(email))
+        {
+            msg = "邮箱不能为空";
+        }
+        else if (!email.matches(EMAIL_PATTERN))
+        {
+            msg = "邮箱格式不正确";
         }
         else if (username.length() < UserConstants.USERNAME_MIN_LENGTH
                 || username.length() > UserConstants.USERNAME_MAX_LENGTH)
@@ -95,17 +118,30 @@ public class SysRegisterService
         }
         else
         {
-            sysUser.setNickName(username);
-            sysUser.setPwdUpdateDate(DateUtils.getNowDate());
-            sysUser.setPassword(SecurityUtils.encryptPassword(password));
-            boolean regFlag = userService.registerUser(sysUser);
-            if (!regFlag)
+            sysUser.setPhonenumber(phonenumber);
+            sysUser.setEmail(email);
+            if (!userService.checkPhoneUnique(sysUser))
             {
-                msg = "注册失败,请联系系统管理人员";
+                msg = "保存用户'" + username + "'失败，手机号已存在";
+            }
+            else if (!userService.checkEmailUnique(sysUser))
+            {
+                msg = "保存用户'" + username + "'失败，邮箱已存在";
             }
             else
             {
-                AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.REGISTER, MessageUtils.message("user.register.success")));
+                sysUser.setNickName(username);
+                sysUser.setPwdUpdateDate(DateUtils.getNowDate());
+                sysUser.setPassword(SecurityUtils.encryptPassword(password));
+                boolean regFlag = userService.registerUser(sysUser);
+                if (!regFlag)
+                {
+                    msg = "注册失败,请联系系统管理人员";
+                }
+                else
+                {
+                    AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.REGISTER, MessageUtils.message("user.register.success")));
+                }
             }
         }
         return msg;

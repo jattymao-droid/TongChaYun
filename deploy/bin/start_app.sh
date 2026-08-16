@@ -15,7 +15,14 @@ if [[ ! -f "${JAR}" ]]; then
   exit 1
 fi
 
-mkdir -p "${APP_HOME}/logs" "${RUOYI_PROFILE}"
+mkdir -p "${APP_HOME}/logs" \
+  "${RUOYI_PROFILE}" \
+  "${RUOYI_PROFILE}/upload" \
+  "${RUOYI_PROFILE}/avatar" \
+  "${RUOYI_PROFILE}/download" \
+  "${RUOYI_PROFILE}/import"
+# Ensure the Java process can write uploads (safe no-op if already correct)
+chmod -R u+rwX,go+rX "${RUOYI_PROFILE}" 2>/dev/null || true
 
 if [[ -f "${PID_FILE}" ]]; then
   old="$(cat "${PID_FILE}" || true)"

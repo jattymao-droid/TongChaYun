@@ -134,6 +134,53 @@ public class SysUserServiceImpl implements ISysUserService
     }
 
     /**
+     * 通过手机号查询用户
+     *
+     * @param phonenumber 手机号
+     * @return 用户对象信息
+     */
+    @Override
+    public SysUser selectUserByPhonenumber(String phonenumber)
+    {
+        if (StringUtils.isEmpty(phonenumber))
+        {
+            return null;
+        }
+        return userMapper.selectUserByPhonenumber(phonenumber.trim());
+    }
+
+    /**
+     * 通过登录标识查询用户（账号 / 手机号 / 邮箱）
+     */
+    @Override
+    public SysUser selectUserByLoginKey(String loginKey)
+    {
+        if (StringUtils.isEmpty(loginKey))
+        {
+            return null;
+        }
+        String key = loginKey.trim();
+        SysUser user = userMapper.selectUserByUserName(key);
+        if (user != null)
+        {
+            return user;
+        }
+        if (key.matches("^1[3-9]\\d{9}$"))
+        {
+            user = userMapper.selectUserByPhonenumber(key);
+            if (user != null)
+            {
+                return user;
+            }
+        }
+        if (key.indexOf('@') > 0)
+        {
+            return userMapper.selectUserByEmail(key);
+        }
+        return null;
+    }
+
+    /**
      * 通过用户ID查询用户
      * 
      * @param userId 用户ID

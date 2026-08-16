@@ -33,6 +33,12 @@ public interface IBizQueryService
 
     String publish(Long queryId);
 
+    /**
+     * System/scheduler publish without current-user ownership check.
+     * Still validates data/fields and refreshes EQ indexes.
+     */
+    String publishInternal(Long queryId, String updateBy);
+
     int offline(Long queryId);
 
     Map<String, Object> openMeta(String code, String accessPwd);

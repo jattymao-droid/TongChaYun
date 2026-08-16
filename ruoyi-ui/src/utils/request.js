@@ -83,15 +83,25 @@ service.interceptors.response.use(res => {
     return res.data
   }
   if (code === 401) {
+    // 落地页/公开页：静默清会话，不弹窗（常见于残留其他项目的 Admin-Token）
+    const path = (typeof location !== 'undefined' && location.pathname) ? location.pathname : ''
+    const isPublicPage = path === '/login' || path === '/register' || path === '/forgotPassword'
+      || path.indexOf('/q/') === 0 || path.indexOf('/s/') === 0
+    if (isPublicPage) {
+      store.dispatch('FedLogOut')
+      return Promise.reject('无效的会话，或者会话已过期，请重新登录。')
+    }
     if (!isRelogin.show) {
       isRelogin.show = true
       MessageBox.confirm('登录状态已过期，您可以继续留在该页面，或者重新登录', '系统提示', { confirmButtonText: '重新登录', cancelButtonText: '取消', type: 'warning' }).then(() => {
         isRelogin.show = false
         store.dispatch('LogOut').then(() => {
-          location.href = '/index'
+          location.href = '/login'
         })
       }).catch(() => {
         isRelogin.show = false
+        // 取消也清掉失效 token，避免反复弹窗
+        store.dispatch('FedLogOut')
       })
     }
     return Promise.reject('无效的会话，或者会话已过期，请重新登录。')

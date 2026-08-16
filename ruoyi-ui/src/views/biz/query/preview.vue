@@ -68,7 +68,15 @@
             <el-button type="primary" :loading="searching" :style="{ background: themeColor, borderColor: themeColor }" @click="handleSearch">查询</el-button>
           </div>
         </el-form>
-        <el-empty v-else-if="!metaLoading" description="请先上传 Excel 并配置字段" />
+        <aside
+          v-if="queryFields.length && showNotice"
+          class="notice-box"
+          :class="['style-' + layout.formNoticeStyle, 'align-' + layout.formNoticeAlign]"
+        >
+          <div v-if="layout.formNoticeTitle" class="notice-title">{{ layout.formNoticeTitle }}</div>
+          <div class="notice-body" v-html="noticeHtml" />
+        </aside>
+        <el-empty v-else-if="!metaLoading && !queryFields.length" description="请先上传 Excel 并配置字段" />
       </div>
     </div>
 
@@ -146,7 +154,9 @@ import {
   resolveFormColumns,
   resolveAssetUrl,
   defaultLayout,
-  summarizeConditions
+  summarizeConditions,
+  noticeBoxVisible,
+  formatNoticeHtml
 } from '@/utils/bizQueryField'
 
 export default {
@@ -194,6 +204,12 @@ export default {
     },
     fieldsCols() {
       return resolveFormColumns(this.layout, this.queryFields.length)
+    },
+    showNotice() {
+      return noticeBoxVisible(this.layout)
+    },
+    noticeHtml() {
+      return formatNoticeHtml(this.layout.formNoticeText)
     },
     logoSrc() {
       if (!this.layout.showLogo) return ''
@@ -386,6 +402,23 @@ export default {
 .actions-bar { margin-top: 4px; display: flex; gap: 10px; }
 .actions-bar.block { flex-direction: column; }
 .actions-bar.block .el-button { width: 100%; margin: 0; }
+.notice-box {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  line-height: 1.55;
+  font-size: 13px;
+  color: #334155;
+}
+.notice-box.align-center { text-align: center; }
+.notice-title { font-size: 13px; font-weight: 700; margin: 0 0 6px; color: #0f172a; }
+.notice-body { word-break: break-word; }
+.notice-box.style-info { background: #eff6ff; border-left: 3px solid #1677ff; }
+.notice-box.style-tip { background: #f0fdf4; border-left: 3px solid #16a34a; }
+.notice-box.style-warn { background: #fffbeb; border-left: 3px solid #d97706; }
+.notice-box.style-soft { background: #f8fafc; border: 1px solid #e2e8f0; }
+.notice-box.style-quote { background: transparent; border: 0; border-left: 3px solid #94a3b8; border-radius: 0; font-style: italic; color: #475569; }
+.notice-box.style-plain { background: transparent; border: 0; padding: 4px 0; color: #64748b; }
 @media (max-width: 720px) {
   .fields.cols-2, .fields.cols-3 { grid-template-columns: 1fr; }
 }

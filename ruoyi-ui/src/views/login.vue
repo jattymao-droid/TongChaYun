@@ -216,7 +216,7 @@
             v-model="loginForm.username"
             type="text"
             auto-complete="username"
-            placeholder="请输入账号"
+            placeholder="账号 / 手机号 / 邮箱"
             clearable
           >
             <i slot="prefix" class="el-input__icon el-icon-user login-field-icon" />
@@ -367,7 +367,7 @@ export default {
         uuid: ''
       },
       loginRules: {
-        username: [{ required: true, trigger: 'blur', message: '请输入您的账号' }],
+        username: [{ required: true, trigger: 'blur', message: '请输入账号 / 手机号 / 邮箱' }],
         password: [{ required: true, trigger: 'blur', message: '请输入您的密码' }],
         code: [{ required: true, trigger: 'change', message: '请输入验证码' }]
       },

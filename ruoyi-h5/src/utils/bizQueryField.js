@@ -69,8 +69,27 @@ export function defaultLayout() {
     posterBgImage: '',
     posterBgOverlay: 40,
     showLogo: false,
-    logoUrl: ''
+    logoUrl: '',
+    formNoticeEnabled: false,
+    formNoticeTitle: '说明',
+    formNoticeText: '',
+    formNoticeStyle: 'info',
+    formNoticeAlign: 'left',
+    formNoticeAnim: true
   }
+}
+
+export function noticeBoxVisible(layout) {
+  return !!(layout && layout.formNoticeEnabled && String(layout.formNoticeText || '').trim())
+}
+
+export function formatNoticeHtml(text) {
+  return String(text || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/\n/g, '<br>')
 }
 
 export function resultStylePresets() {
@@ -258,7 +277,7 @@ export function parseLayout(page) {
     ;['showSerial','resultShowTotal','resultShowExport','resultShowPrint','resultShowConditions','resultDense',
       'resultShowEyebrow','resultShowEmptyIcon','resultAnim','resultShowChart',
       'formShowEyebrow','formShowAmbient','formShowFillHint','formCompact','formBtnBlock','formAnim',
-      'showLogo'
+      'showLogo','formNoticeEnabled','formNoticeAnim'
     ].forEach(k => {
       if (obj[k] !== undefined && obj[k] !== null) layout[k] = !!obj[k]
     })
@@ -276,6 +295,12 @@ export function parseLayout(page) {
     layout.formShowAmbient = layout.formShowAmbient !== false
     layout.formShowFillHint = layout.formShowFillHint !== false
     layout.formAnim = layout.formAnim !== false
+    layout.formNoticeEnabled = layout.formNoticeEnabled === true
+    layout.formNoticeAnim = layout.formNoticeAnim !== false
+    if (layout.formNoticeTitle == null || layout.formNoticeTitle === '') layout.formNoticeTitle = '说明'
+    if (layout.formNoticeText == null) layout.formNoticeText = ''
+    if (!['info', 'tip', 'warn', 'soft', 'quote', 'plain'].includes(layout.formNoticeStyle)) layout.formNoticeStyle = 'info'
+    if (!['left', 'center'].includes(layout.formNoticeAlign)) layout.formNoticeAlign = 'left'
 
     layout.resultMaxWidth = Number(layout.resultMaxWidth) || 960
     layout.formMaxWidth = Number(layout.formMaxWidth) || 720
@@ -357,6 +382,17 @@ export function resolveAssetUrl(path, apiBase) {
   let url = String(path).split(',')[0].trim()
   if (!url) return ''
   if (/^https?:\/\//i.test(url) || url.startsWith('data:') || url.startsWith('blob:')) return url
+  url = url.replace(/\\/g, '/')
+  const marker = '/uploadPath/'
+  const mi = url.indexOf(marker)
+  if (mi >= 0) {
+    url = '/profile/' + url.substring(mi + marker.length).replace(/^\/+/, '')
+  } else {
+    const uploadIdx = url.indexOf('/upload/')
+    if (url.includes('wwwroot') && uploadIdx >= 0) {
+      url = '/profile' + url.substring(uploadIdx)
+    }
+  }
   url = url.replace(/^\/?(dev-api|prod-api)/, '')
   if (!url.startsWith('/')) url = '/' + url
   const base = (apiBase || '').replace(/\/$/, '')

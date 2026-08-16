@@ -116,15 +116,17 @@ const user = {
 
     // 退出系统
     LogOut({ commit, state }) {
-      return new Promise((resolve, reject) => {
-        logout(state.token).then(() => {
+      return new Promise((resolve) => {
+        const clear = () => {
           commit('SET_TOKEN', '')
           commit('SET_ROLES', [])
           commit('SET_PERMISSIONS', [])
           removeToken()
           resolve()
-        }).catch(error => {
-          reject(error)
+        }
+        logout(state.token).then(clear).catch(() => {
+          // 服务端登出失败（如 token 已失效）仍清本地会话，避免 401 死循环
+          clear()
         })
       })
     },
@@ -133,6 +135,8 @@ const user = {
     FedLogOut({ commit }) {
       return new Promise(resolve => {
         commit('SET_TOKEN', '')
+        commit('SET_ROLES', [])
+        commit('SET_PERMISSIONS', [])
         removeToken()
         resolve()
       })

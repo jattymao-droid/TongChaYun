@@ -54,5 +54,6 @@ else
   echo "  SKIP_DB_INIT=1 set, continue without psql."
 fi
 
-mkdir -p "${APP_HOME}" "${RUOYI_PROFILE}" "${APP_HOME}/logs"
+mkdir -p "${APP_HOME}" "${RUOYI_PROFILE}" "${RUOYI_PROFILE}/upload" "${RUOYI_PROFILE}/avatar" "${RUOYI_PROFILE}/download" "${RUOYI_PROFILE}/import" "${APP_HOME}/logs"
+chmod -R u+rwX,go+rX "${RUOYI_PROFILE}" 2>/dev/null || true
 echo "==> Deps OK. APP_HOME=${APP_HOME}"

@@ -90,7 +90,8 @@ public class CommonController
         }
         catch (Exception e)
         {
-            return AjaxResult.error(e.getMessage());
+            log.error("上传文件失败 profile={}", RuoYiConfig.getProfile(), e);
+            return AjaxResult.error(StringUtils.isNotEmpty(e.getMessage()) ? e.getMessage() : "上传文件失败");
         }
     }
 
@@ -127,7 +128,8 @@ public class CommonController
         }
         catch (Exception e)
         {
-            return AjaxResult.error(e.getMessage());
+            log.error("批量上传文件失败 profile={}", RuoYiConfig.getProfile(), e);
+            return AjaxResult.error(StringUtils.isNotEmpty(e.getMessage()) ? e.getMessage() : "上传文件失败");
         }
     }
 

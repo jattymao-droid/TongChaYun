@@ -69,6 +69,17 @@ export function resolveAssetUrl(path, apiBase) {
   let url = String(path).split(',')[0].trim()
   if (!url) return ''
   if (/^https?:\/\//i.test(url) || url.startsWith('data:') || url.startsWith('blob:')) return url
+  url = url.replace(/\\/g, '/')
+  const marker = '/uploadPath/'
+  const mi = url.indexOf(marker)
+  if (mi >= 0) {
+    url = '/profile/' + url.substring(mi + marker.length).replace(/^\/+/, '')
+  } else {
+    const uploadIdx = url.indexOf('/upload/')
+    if (url.includes('wwwroot') && uploadIdx >= 0) {
+      url = '/profile' + url.substring(uploadIdx)
+    }
+  }
   url = url.replace(/^\/?(dev-api|prod-api)/, '')
   if (!url.startsWith('/')) url = '/' + url
   const base = (apiBase || '').replace(/\/$/, '')

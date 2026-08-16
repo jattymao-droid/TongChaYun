@@ -149,4 +149,9 @@ public interface SysUserMapper
      * 按邮箱查询用户（未删除）
      */
     public SysUser selectUserByEmail(String email);
+
+    /**
+     * 按手机号查询用户（未删除）
+     */
+    public SysUser selectUserByPhonenumber(String phonenumber);
 }

@@ -116,6 +116,48 @@
               </el-form-item>
             </el-form>
 
+            <el-divider content-position="left">底部说明框</el-divider>
+            <el-form :model="layout" label-width="110px" size="small">
+              <el-form-item label="显示说明框">
+                <el-switch v-model="layout.formNoticeEnabled" />
+                <span class="ml8 muted">显示在查询卡片与页脚之间</span>
+              </el-form-item>
+              <template v-if="layout.formNoticeEnabled">
+                <el-form-item label="说明标题">
+                  <el-input v-model="layout.formNoticeTitle" maxlength="40" show-word-limit placeholder="默认：说明" />
+                </el-form-item>
+                <el-form-item label="说明内容">
+                  <el-input
+                    v-model="layout.formNoticeText"
+                    type="textarea"
+                    :rows="4"
+                    maxlength="800"
+                    show-word-limit
+                    placeholder="例如：请准确填写学号与姓名；如有疑问请联系班主任。"
+                  />
+                </el-form-item>
+                <el-form-item label="展示样式">
+                  <el-radio-group v-model="layout.formNoticeStyle">
+                    <el-radio label="info">信息蓝</el-radio>
+                    <el-radio label="tip">提示绿</el-radio>
+                    <el-radio label="warn">注意黄</el-radio>
+                    <el-radio label="soft">柔和灰</el-radio>
+                    <el-radio label="quote">引用条</el-radio>
+                    <el-radio label="plain">纯文字</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="对齐">
+                  <el-radio-group v-model="layout.formNoticeAlign">
+                    <el-radio label="left">靠左</el-radio>
+                    <el-radio label="center">居中</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="入场动画">
+                  <el-switch v-model="layout.formNoticeAnim" />
+                </el-form-item>
+              </template>
+            </el-form>
+
             <el-divider content-position="left">分享海报背景</el-divider>
             <el-form :model="layout" label-width="110px" size="small">
               <poster-bg-form
@@ -335,6 +377,14 @@
                   <el-button type="primary" size="mini" :style="{ background: form.themeColor, borderColor: form.themeColor }">查询</el-button>
                 </div>
               </div>
+              <aside
+                v-if="layout.formNoticeEnabled && (layout.formNoticeText || '').trim()"
+                class="fp-notice"
+                :class="['style-' + layout.formNoticeStyle, 'align-' + layout.formNoticeAlign]"
+              >
+                <div v-if="layout.formNoticeTitle" class="fp-notice-title">{{ layout.formNoticeTitle }}</div>
+                <div class="fp-notice-body">{{ layout.formNoticeText }}</div>
+              </aside>
             </div>
           </div>
 
@@ -662,7 +712,26 @@ export default {
 .fp-field label { display: block; font-size: 12px; color: #475569; margin-bottom: 4px; font-weight: 600; }
 .compact .fp-fields { gap: 4px 10px; }
 .fp-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid #eef2f7; }
+.fp-actions.block { flex-wrap: wrap; }
 .fp-actions.block .el-button--primary { flex: 1; }
+.fp-notice {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #334155;
+  white-space: pre-wrap;
+}
+.fp-notice.align-center { text-align: center; }
+.fp-notice-title { font-weight: 700; margin-bottom: 4px; color: #0f172a; }
+.fp-notice.style-info { background: #eff6ff; border-left: 3px solid #1677ff; }
+.fp-notice.style-tip { background: #f0fdf4; border-left: 3px solid #16a34a; }
+.fp-notice.style-warn { background: #fffbeb; border-left: 3px solid #d97706; }
+.fp-notice.style-soft { background: #f8fafc; border: 1px solid #e2e8f0; }
+.fp-notice.style-quote { background: transparent; border: 0; border-left: 3px solid #94a3b8; border-radius: 0; font-style: italic; color: #475569; }
+.fp-notice.style-plain { background: transparent; border: 0; padding: 4px 0; color: #64748b; }
 
 .rp-title { margin: 0 0 6px; font-size: 22px; }
 .rp-total { margin: 0 0 10px; color: var(--result-muted, #666); font-size: 13px; }

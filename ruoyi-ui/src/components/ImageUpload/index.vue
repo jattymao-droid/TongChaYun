@@ -130,8 +130,9 @@ export default {
           // 然后将数组转为对象数组
           this.fileList = list.map(item => {
             if (typeof item === "string") {
+              item = this.normalizeUploadPath(item)
               if (item.indexOf(this.baseUrl) === -1 && !isExternal(item)) {
-                  item = { name: this.baseUrl + item, url: this.baseUrl + item }
+                  item = { name: item, url: this.baseUrl + item }
               } else {
                   item = { name: item, url: item }
               }
@@ -196,15 +197,50 @@ export default {
     // 上传成功回调
     handleUploadSuccess(res, file) {
       if (res.code === 200) {
-        this.uploadList.push({ name: res.fileName, url: res.fileName })
+        const fileName = this.normalizeUploadPath(res.fileName || res.url || '')
+        if (!fileName) {
+          this.number--
+          this.$modal.closeLoading()
+          this.$modal.msgError('上传成功但未返回文件路径')
+          this.$refs.imageUpload.handleRemove(file)
+          this.uploadedSuccessfully()
+          return
+        }
+        // 预览走 /prod-api 或相对 /profile，避免裸绝对路径
+        const preview = fileName.startsWith('http') ? fileName : (this.baseUrl + fileName)
+        this.uploadList.push({ name: fileName, url: preview })
         this.uploadedSuccessfully()
       } else {
         this.number--
         this.$modal.closeLoading()
-        this.$modal.msgError(res.msg)
+        this.$modal.msgError(res.msg || '上传图片失败')
         this.$refs.imageUpload.handleRemove(file)
         this.uploadedSuccessfully()
       }
+    },
+    /** 把误返回的绝对路径（…/uploadPath/upload/…）纠正为 /profile/upload/… */
+    normalizeUploadPath(path) {
+      if (!path) return ''
+      let p = String(path).trim().split(',')[0].trim()
+      if (!p) return ''
+      p = p.replace(/\\/g, '/')
+      const marker = '/uploadPath/'
+      const mi = p.indexOf(marker)
+      if (mi >= 0) {
+        return '/profile/' + p.substring(mi + marker.length).replace(/^\/+/, '')
+      }
+      if (/^https?:\/\//i.test(p) || p.startsWith('data:') || p.startsWith('blob:')) {
+        return p
+      }
+      // 去掉域名后的 /prod-api 前缀
+      p = p.replace(/^https?:\/\/[^/]+/i, '')
+      p = p.replace(/^\/?(dev-api|prod-api)/, '')
+      const uploadIdx = p.indexOf('/upload/')
+      if (p.includes('wwwroot') && uploadIdx >= 0) {
+        return '/profile' + p.substring(uploadIdx)
+      }
+      if (!p.startsWith('/')) p = '/' + p
+      return p
     },
     // 删除图片
     handleDelete(file) {
@@ -215,8 +251,15 @@ export default {
       }
     },
     // 上传失败
-    handleUploadError() {
-      this.$modal.msgError("上传图片失败，请重试")
+    handleUploadError(err) {
+      let tip = '上传图片失败，请重试'
+      try {
+        const raw = err && (err.message || err.toString())
+        if (raw && /权限|Permission|不可写|写入失败|上传目录/i.test(raw)) {
+          tip = raw
+        }
+      } catch (e) { /* ignore */ }
+      this.$modal.msgError(tip)
       this.$modal.closeLoading()
     },
     // 上传结束处理
@@ -234,13 +277,14 @@ export default {
       this.dialogImageUrl = file.url
       this.dialogVisible = true
     },
-    // 对象转成指定字符串分隔
+    // 对象转成指定字符串分隔（始终存 /profile/... 相对路径）
     listToString(list, separator) {
       let strs = ""
       separator = separator || ","
       for (let i in list) {
-        if (list[i].url) {
-          strs += list[i].url.replace(this.baseUrl, "") + separator
+        if (list[i].url || list[i].name) {
+          const raw = list[i].name || list[i].url
+          strs += this.normalizeUploadPath(String(raw).replace(this.baseUrl, "")) + separator
         }
       }
       return strs != '' ? strs.substr(0, strs.length - 1) : ''

@@ -459,21 +459,21 @@ public class BizQueryServiceImpl implements IBizQueryService
     {
         BizQuery query = requireQuery(queryId);
         checkOwner(query);
+        return doPublish(query, SecurityUtils.getUsername());
+    }
+
+    @Override
+    public String publishInternal(Long queryId, String updateBy)
+    {
+        BizQuery query = requireQuery(queryId);
+        return doPublish(query, StringUtils.isEmpty(updateBy) ? "system" : updateBy);
+    }
+
+    private String doPublish(BizQuery query, String updateBy)
+    {
+        Long queryId = query.getQueryId();
         List<BizQueryField> fields = fieldMapper.selectFieldsByQueryId(queryId);
-        if (fields == null || fields.isEmpty() || query.getRowCount() == null || query.getRowCount() <= 0)
-        {
-            throw new ServiceException("请先上传数据再发布");
-        }
-        boolean hasQuery = fields.stream().anyMatch(f -> "1".equals(f.getIsQuery()));
-        boolean hasList = fields.stream().anyMatch(f -> "1".equals(f.getIsList()));
-        if (!hasQuery)
-        {
-            throw new ServiceException("请至少配置一个查询条件字段后再发布");
-        }
-        if (!hasList)
-        {
-            throw new ServiceException("请至少配置一个结果展示字段后再发布");
-        }
+        assertPublishReady(query, fields, "发布");
         String code = query.getPublicCode();
         if (StringUtils.isEmpty(code))
         {
@@ -483,11 +483,35 @@ public class BizQueryServiceImpl implements IBizQueryService
         upd.setQueryId(queryId);
         upd.setPublicCode(code);
         upd.setStatus("1");
-        upd.setUpdateBy(SecurityUtils.getUsername());
+        upd.setUpdateBy(updateBy);
         upd.getParams().put("clearPublishAt", true);
         queryMapper.updateBizQuery(upd);
         BizQueryIndexHelper.refreshEqIndexes(queryId, fields);
         return code;
+    }
+
+    /** Shared publish readiness: data + query/list fields + at least one required query field. */
+    static void assertPublishReady(BizQuery query, List<BizQueryField> fields, String actionLabel)
+    {
+        if (fields == null || fields.isEmpty() || query.getRowCount() == null || query.getRowCount() <= 0)
+        {
+            throw new ServiceException("请先上传数据再" + actionLabel);
+        }
+        boolean hasQuery = fields.stream().anyMatch(f -> "1".equals(f.getIsQuery()));
+        boolean hasList = fields.stream().anyMatch(f -> "1".equals(f.getIsList()));
+        boolean hasRequired = fields.stream().anyMatch(f -> "1".equals(f.getIsQuery()) && !"0".equals(f.getIsRequired()));
+        if (!hasQuery)
+        {
+            throw new ServiceException("请至少配置一个查询条件字段后再" + actionLabel);
+        }
+        if (!hasRequired)
+        {
+            throw new ServiceException("请至少配置一个必填查询条件后再" + actionLabel + "（防撞库）");
+        }
+        if (!hasList)
+        {
+            throw new ServiceException("请至少配置一个结果展示字段后再" + actionLabel);
+        }
     }
 
     @Override
@@ -1765,7 +1789,12 @@ public class BizQueryServiceImpl implements IBizQueryService
     @Override
     public List<Map<String, Object>> searchUsersForAdmin(String keyword)
     {
-        return queryAdminMapper.searchUsers(StringUtils.trim(keyword));
+        String kw = StringUtils.trim(keyword);
+        if (StringUtils.isEmpty(kw) || kw.length() < 2)
+        {
+            throw new ServiceException("请输入至少 2 个字符搜索用户");
+        }
+        return queryAdminMapper.searchUsers(kw);
     }
 
     @Override

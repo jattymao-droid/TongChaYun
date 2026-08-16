@@ -112,10 +112,10 @@
                   <el-dropdown-item v-if="row.publicCode" command="link" icon="el-icon-link">链接</el-dropdown-item>
                   <el-dropdown-item command="audit" icon="el-icon-document" v-hasPermi="['biz:query:query']">访问审计</el-dropdown-item>
                   <el-dropdown-item command="edit" icon="el-icon-edit" v-hasPermi="['biz:query:edit']">编辑</el-dropdown-item>
-                  <el-dropdown-item command="admins" icon="el-icon-user" v-hasPermi="['biz:query:edit']">协作者</el-dropdown-item>
+                  <el-dropdown-item command="admins" icon="el-icon-user" v-if="canManageCollaborators(row)" v-hasPermi="['biz:query:edit']">协作者</el-dropdown-item>
                   <el-dropdown-item command="revisions" icon="el-icon-time" v-hasPermi="['biz:query:query']">数据版本</el-dropdown-item>
                   <el-dropdown-item command="transfer" icon="el-icon-sort" v-hasPermi="['biz:user:transfer']">转让归属</el-dropdown-item>
-                  <el-dropdown-item command="delete" icon="el-icon-delete" divided v-hasPermi="['biz:query:remove']">删除</el-dropdown-item>
+                  <el-dropdown-item command="delete" icon="el-icon-delete" divided v-if="canDeleteQuery(row)" v-hasPermi="['biz:query:remove']">删除</el-dropdown-item>
                 </el-dropdown-menu>
               </el-dropdown>
             </div>
@@ -293,7 +293,7 @@
 
     <el-dialog :title="'协作者 - ' + ((adminRow && adminRow.queryName) || '')" :visible.sync="adminOpen" width="560px" append-to-body>
       <div class="admin-add">
-        <el-select v-model="adminUserId" filterable remote clearable placeholder="搜索用户" :remote-method="searchAdminUsers" :loading="adminSearching" style="width:70%">
+        <el-select v-model="adminUserId" filterable remote clearable placeholder="输入至少2字搜索用户" :remote-method="searchAdminUsers" :loading="adminSearching" style="width:70%">
           <el-option v-for="u in adminUsers" :key="u.userId" :label="(u.nickName || u.userName) + ' (' + u.userName + ')'" :value="u.userId" />
         </el-select>
         <el-button type="primary" size="mini" :loading="adminAdding" :disabled="!adminUserId" @click="submitAddAdmin">添加</el-button>
@@ -435,6 +435,11 @@ export default {
       const roles = this.$store.getters.roles || []
       return roles.includes('admin') || perms.includes('biz:user:list') || perms.includes('*:*:*')
     },
+    isAdminUser() {
+      const roles = this.$store.getters.roles || []
+      const perms = this.$store.getters.permissions || []
+      return roles.includes('admin') || perms.includes('*:*:*')
+    },
     selectAllPage() {
       return this.queryList.length > 0 && this.queryList.every(r => this.ids.includes(r.queryId))
     },
@@ -472,6 +477,16 @@ export default {
       const a = row.ownerNickName || ''
       const b = row.ownerName || row.createBy || ''
       return a && b && a !== b ? (a + ' / ' + b) : (a || b || '')
+    },
+    isQueryOwner(row) {
+      if (!row || row.createUserId == null) return false
+      return Number(row.createUserId) === Number(this.$store.getters.id)
+    },
+    canManageCollaborators(row) {
+      return this.isAdminUser || this.isQueryOwner(row)
+    },
+    canDeleteQuery(row) {
+      return this.isAdminUser || this.isQueryOwner(row)
     },
     applyRouteAction() {
       const action = this.$route.query.action
@@ -736,7 +751,14 @@ export default {
       if (!row.rowCount && (!row.parseStatus || row.parseStatus === '0')) return 'info'
       return 'success'
     },
-    goSetup(row) { this.$router.push('/biz/query-setup/index/' + row.queryId) },
+    goSetup(row) {
+      const perms = this.$store.getters.permissions || []
+      if (!perms.includes('biz:query:edit') && !perms.includes('*:*:*')) {
+        this.$modal.msgWarning('无编辑权限')
+        return
+      }
+      this.$router.push('/biz/query-setup/index/' + row.queryId)
+    },
     goFields(row) { this.$router.push('/biz/query-fields/index/' + row.queryId) },
     goPreview(row) { this.$router.push('/biz/query-preview/index/' + row.queryId) },
     handleCopy(row) {
@@ -779,7 +801,24 @@ export default {
       this.auditOpen = true
       this.loadAuditLogs()
     },
+    searchAdminUsers(q) {
+      const kw = (q || '').trim()
+      if (kw.length < 2) {
+        this.adminUsers = []
+        return
+      }
+      this.adminSearching = true
+      searchQueryAdminUsers(kw).then(res => {
+        this.adminUsers = res.data || []
+      }).catch(() => {
+        this.adminUsers = []
+      }).finally(() => { this.adminSearching = false })
+    },
     openAdmins(row) {
+      if (!this.canManageCollaborators(row)) {
+        this.$modal.msgWarning('仅归属人可管理协作者')
+        return
+      }
       this.adminRow = row
       this.adminUserId = null
       this.adminUsers = []
@@ -792,12 +831,6 @@ export default {
       listQueryAdmins(this.adminRow.queryId).then(res => {
         this.adminList = res.data || []
       }).finally(() => { this.adminLoading = false })
-    },
-    searchAdminUsers(q) {
-      this.adminSearching = true
-      searchQueryAdminUsers(q || '').then(res => {
-        this.adminUsers = res.data || []
-      }).finally(() => { this.adminSearching = false })
     },
     submitAddAdmin() {
       if (!this.adminRow || !this.adminUserId) return

@@ -148,9 +148,9 @@ public class SysLoginService
             AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.LOGIN_FAIL, MessageUtils.message("user.password.not.match")));
             throw new UserPasswordNotMatchException();
         }
-        // 用户名不在指定范围内 错误
-        if (username.length() < UserConstants.USERNAME_MIN_LENGTH
-                || username.length() > UserConstants.USERNAME_MAX_LENGTH)
+        // 登录标识长度：账号最长20；手机号11；邮箱放宽到64
+        int maxLen = username.indexOf('@') > 0 ? 64 : UserConstants.USERNAME_MAX_LENGTH;
+        if (username.length() < UserConstants.USERNAME_MIN_LENGTH || username.length() > maxLen)
         {
             AsyncManager.me().execute(AsyncFactory.recordLogininfor(username, Constants.LOGIN_FAIL, MessageUtils.message("user.password.not.match")));
             throw new UserPasswordNotMatchException();

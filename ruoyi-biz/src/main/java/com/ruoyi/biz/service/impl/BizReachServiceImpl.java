@@ -11,15 +11,20 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.ruoyi.biz.domain.BizPublishRequest;
 import com.ruoyi.biz.domain.BizQuery;
 import com.ruoyi.biz.domain.BizQueryField;
 import com.ruoyi.biz.domain.BizSurvey;
 import com.ruoyi.biz.domain.BizSurveyQuestion;
+import com.ruoyi.biz.mapper.BizPublishRequestMapper;
+import com.ruoyi.biz.mapper.BizQueryAdminMapper;
 import com.ruoyi.biz.mapper.BizQueryFieldMapper;
 import com.ruoyi.biz.mapper.BizQueryMapper;
 import com.ruoyi.biz.mapper.BizSurveyMapper;
 import com.ruoyi.biz.mapper.BizSurveyQuestionMapper;
 import com.ruoyi.biz.service.IBizNotifyService;
+import com.ruoyi.biz.service.IBizPublishApproveService;
+import com.ruoyi.biz.service.IBizQueryService;
 import com.ruoyi.biz.service.IBizReachService;
 import com.ruoyi.biz.utils.BizProjectScopeHelper;
 import com.ruoyi.common.core.domain.entity.SysUser;
@@ -28,6 +33,7 @@ import com.ruoyi.common.utils.SecurityUtils;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.system.service.ISysBasicService;
 import com.ruoyi.system.service.ISysUserService;
+import org.springframework.context.annotation.Lazy;
 
 @Service
 public class BizReachServiceImpl implements IBizReachService
@@ -44,6 +50,10 @@ public class BizReachServiceImpl implements IBizReachService
     @Autowired
     private BizQueryFieldMapper fieldMapper;
     @Autowired
+    private BizQueryAdminMapper queryAdminMapper;
+    @Autowired
+    private BizPublishRequestMapper publishRequestMapper;
+    @Autowired
     private IBizNotifyService notifyService;
     @Autowired
     private ISysBasicService basicService;
@@ -51,6 +61,11 @@ public class BizReachServiceImpl implements IBizReachService
     private ISysUserService userService;
     @Autowired
     private BizProjectScopeHelper projectScopeHelper;
+    @Autowired
+    private IBizPublishApproveService publishApproveService;
+    @Autowired
+    @Lazy
+    private IBizQueryService queryService;
 
     @Override
     public Map<String, Integer> runDueTasks()
@@ -322,6 +337,7 @@ public class BizReachServiceImpl implements IBizReachService
         {
             return 0;
         }
+        boolean approveEnabled = publishApproveService.isApproveEnabled();
         for (BizQuery q : list)
         {
             try
@@ -331,14 +347,18 @@ public class BizReachServiceImpl implements IBizReachService
                     log.warn("skip auto-publish query {}: not ready", q.getQueryId());
                     continue;
                 }
-                String code = ensureQueryCode(q);
-                BizQuery upd = new BizQuery();
-                upd.setQueryId(q.getQueryId());
-                upd.setPublicCode(code);
-                upd.setStatus("1");
-                upd.getParams().put("clearPublishAt", true);
-                upd.setUpdateBy("system");
-                queryMapper.updateBizQuery(upd);
+                if (approveEnabled)
+                {
+                    clearQueryPublishAt(q.getQueryId());
+                    ensureQueryCode(q);
+                    submitScheduledPublishRequest(q);
+                    notifyService.createSimpleNotify(q.getCreateUserId(), null,
+                        "查询预约待审批：" + q.getQueryName(),
+                        "预约时间已到，已提交发布审批，请等待管理员通过后即可访问。");
+                    n++;
+                    continue;
+                }
+                String code = queryService.publishInternal(q.getQueryId(), "system");
                 notifyService.createSimpleNotify(q.getCreateUserId(), null,
                     "查询已自动发布：" + q.getQueryName(),
                     "预约时间已到，短码 " + code + " 现已可访问。");
@@ -350,6 +370,34 @@ public class BizReachServiceImpl implements IBizReachService
             }
         }
         return n;
+    }
+
+    private void clearQueryPublishAt(Long queryId)
+    {
+        BizQuery upd = new BizQuery();
+        upd.setQueryId(queryId);
+        upd.getParams().put("clearPublishAt", true);
+        upd.setUpdateBy("system");
+        queryMapper.updateBizQuery(upd);
+    }
+
+    private void submitScheduledPublishRequest(BizQuery q)
+    {
+        BizPublishRequest probe = new BizPublishRequest();
+        probe.setProjectType("query");
+        probe.setProjectId(q.getQueryId());
+        if (publishRequestMapper.countPendingByProject(probe) > 0)
+        {
+            return;
+        }
+        BizPublishRequest req = new BizPublishRequest();
+        req.setProjectType("query");
+        req.setProjectId(q.getQueryId());
+        req.setProjectName(q.getQueryName());
+        req.setStatus("0");
+        req.setApplyBy(StringUtils.isNotEmpty(q.getCreateBy()) ? q.getCreateBy() : "system");
+        req.setApplyUserId(q.getCreateUserId());
+        publishRequestMapper.insert(req);
     }
 
     private int processQueryExpire()
@@ -449,20 +497,7 @@ public class BizReachServiceImpl implements IBizReachService
     private void assertQueryReadyToPublish(BizQuery query)
     {
         List<BizQueryField> fields = fieldMapper.selectFieldsByQueryId(query.getQueryId());
-        if (fields == null || fields.isEmpty() || query.getRowCount() == null || query.getRowCount() <= 0)
-        {
-            throw new ServiceException("请先上传数据再预约发布");
-        }
-        boolean hasQuery = fields.stream().anyMatch(f -> "1".equals(f.getIsQuery()));
-        boolean hasList = fields.stream().anyMatch(f -> "1".equals(f.getIsList()));
-        if (!hasQuery)
-        {
-            throw new ServiceException("请至少配置一个查询条件字段后再预约发布");
-        }
-        if (!hasList)
-        {
-            throw new ServiceException("请至少配置一个结果展示字段后再预约发布");
-        }
+        BizQueryServiceImpl.assertPublishReady(query, fields, "预约发布");
     }
 
     private boolean isQueryReadyQuiet(BizQuery query)
@@ -612,6 +647,19 @@ public class BizReachServiceImpl implements IBizReachService
 
     private void assertQueryAccess(BizQuery query)
     {
+        Long uid = null;
+        try
+        {
+            uid = SecurityUtils.getUserId();
+        }
+        catch (Exception ignored)
+        {
+        }
+        if (uid != null && query.getQueryId() != null
+            && queryAdminMapper.countByQueryAndUser(query.getQueryId(), uid) > 0)
+        {
+            return;
+        }
         projectScopeHelper.assertAccess(query.getCreateUserId(), query.getDeptId(),
             "biz:query:list,biz:query:query,biz:query:edit,biz:query:publish", "无权操作该查询");
     }

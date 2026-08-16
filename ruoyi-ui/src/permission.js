@@ -44,9 +44,9 @@ router.beforeEach((to, from, next) => {
             next({ ...to, replace: true }) // hack方法 确保addRoutes已完成
           })
         }).catch(err => {
-          store.dispatch('LogOut').then(() => {
-            Message.error(err)
-            next({ path: '/' })
+          store.dispatch('FedLogOut').then(() => {
+            if (err) Message.error(typeof err === 'string' ? err : '登录状态已失效，请重新登录')
+            next({ path: '/login' })
           })
         })
       } else {

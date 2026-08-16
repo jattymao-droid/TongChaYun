@@ -2,7 +2,10 @@ package com.ruoyi.common.utils.file;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Paths;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Objects;
 import org.apache.commons.io.FilenameUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -133,9 +136,42 @@ public class FileUploadUtils
 
         String fileName = useCustomNaming ? uuidFilename(file) : extractFilename(file);
 
-        String absPath = getAbsoluteFile(baseDir, fileName).getAbsolutePath();
-        file.transferTo(Paths.get(absPath));
+        File desc = getAbsoluteFile(baseDir, fileName);
+        writeMultipartFile(file, desc);
         return getPathFileName(baseDir, fileName);
+    }
+
+    /**
+     * Write upload to disk. Prefer stream copy so cross-filesystem / permission issues
+     * surface with a clear message instead of a bare absolute path.
+     */
+    private static void writeMultipartFile(MultipartFile file, File dest) throws IOException
+    {
+        Path target = dest.toPath().toAbsolutePath().normalize();
+        Path parent = target.getParent();
+        if (parent != null)
+        {
+            try
+            {
+                Files.createDirectories(parent);
+            }
+            catch (IOException e)
+            {
+                throw new IOException("无法创建上传目录（请检查 RUOYI_PROFILE 权限）: " + parent + " — " + e.getMessage(), e);
+            }
+            if (!Files.isWritable(parent))
+            {
+                throw new IOException("上传目录不可写（请检查目录属主/权限）: " + parent);
+            }
+        }
+        try (InputStream in = file.getInputStream())
+        {
+            Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+        }
+        catch (IOException e)
+        {
+            throw new IOException("文件写入失败（请检查磁盘空间与目录权限）: " + target + " — " + e.getMessage(), e);
+        }
     }
 
     /**
@@ -157,21 +193,41 @@ public class FileUploadUtils
     public static final File getAbsoluteFile(String uploadDir, String fileName) throws IOException
     {
         File desc = new File(uploadDir + File.separator + fileName);
-
-        if (!desc.exists())
+        File parent = desc.getParentFile();
+        if (parent != null && !parent.exists() && !parent.mkdirs() && !parent.exists())
         {
-            if (!desc.getParentFile().exists())
-            {
-                desc.getParentFile().mkdirs();
-            }
+            throw new IOException("无法创建上传目录（请检查 RUOYI_PROFILE 权限）: " + parent.getAbsolutePath());
         }
         return desc;
     }
 
     public static final String getPathFileName(String uploadDir, String fileName) throws IOException
     {
-        int dirLastIndex = RuoYiConfig.getProfile().length() + 1;
-        String currentDir = StringUtils.substring(uploadDir, dirLastIndex);
+        String profile = RuoYiConfig.getProfile() == null ? "" : RuoYiConfig.getProfile();
+        String normalizedUpload = StringUtils.replace(uploadDir, "\\", "/");
+        String normalizedProfile = StringUtils.replace(profile, "\\", "/");
+        while (normalizedProfile.endsWith("/"))
+        {
+            normalizedProfile = normalizedProfile.substring(0, normalizedProfile.length() - 1);
+        }
+        String currentDir;
+        if (StringUtils.isNotEmpty(normalizedProfile) && normalizedUpload.startsWith(normalizedProfile))
+        {
+            currentDir = StringUtils.substring(normalizedUpload, normalizedProfile.length());
+            if (currentDir.startsWith("/"))
+            {
+                currentDir = currentDir.substring(1);
+            }
+        }
+        else
+        {
+            // fallback: always expose under /profile/upload/...
+            currentDir = "upload";
+        }
+        if (StringUtils.isEmpty(currentDir))
+        {
+            currentDir = "upload";
+        }
         return Constants.RESOURCE_PREFIX + "/" + currentDir + "/" + fileName;
     }
 

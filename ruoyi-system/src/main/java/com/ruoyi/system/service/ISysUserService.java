@@ -52,6 +52,22 @@ public interface ISysUserService
     public SysUser selectUserByEmail(String email);
 
     /**
+     * 通过手机号查询用户
+     *
+     * @param phonenumber 手机号
+     * @return 用户对象信息
+     */
+    public SysUser selectUserByPhonenumber(String phonenumber);
+
+    /**
+     * 通过登录标识查询用户（账号 / 手机号 / 邮箱）
+     *
+     * @param loginKey 登录标识
+     * @return 用户对象信息
+     */
+    public SysUser selectUserByLoginKey(String loginKey);
+
+    /**
      * 通过用户ID查询用户
      * 
      * @param userId 用户ID

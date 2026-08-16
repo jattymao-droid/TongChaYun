@@ -31,9 +31,15 @@
 
         <el-form ref="registerForm" :model="registerForm" :rules="registerRules" class="js-login-card" @submit.native.prevent>
           <h3>创建账号</h3>
-          <p class="js-login-tip">填写信息，几步完成注册</p>
+          <p class="js-login-tip">账号、手机号、邮箱均可用于登录</p>
           <el-form-item prop="username">
             <el-input v-model="registerForm.username" type="text" auto-complete="off" placeholder="账号" prefix-icon="el-icon-user" />
+          </el-form-item>
+          <el-form-item prop="phonenumber">
+            <el-input v-model="registerForm.phonenumber" type="tel" auto-complete="tel" placeholder="手机号" prefix-icon="el-icon-phone-outline" maxlength="11" />
+          </el-form-item>
+          <el-form-item prop="email">
+            <el-input v-model="registerForm.email" type="email" auto-complete="email" placeholder="邮箱" prefix-icon="el-icon-message" />
           </el-form-item>
           <el-form-item prop="password" :rules="registerPwdValidator">
             <el-input
@@ -58,9 +64,6 @@
             />
           </el-form-item>
           <template v-if="mailVerifyEnabled">
-            <el-form-item prop="email">
-              <el-input v-model="registerForm.email" placeholder="邮箱" prefix-icon="el-icon-message" />
-            </el-form-item>
             <el-form-item prop="emailCode" class="code-item">
               <el-input v-model="registerForm.emailCode" placeholder="邮箱验证码" prefix-icon="el-icon-key" class="code-input" />
               <el-button size="medium" :disabled="mailCodeSeconds > 0" :loading="mailCodeSending" @click="sendMailCode">
@@ -123,6 +126,7 @@ export default {
       codeUrl: '',
       registerForm: {
         username: '',
+        phonenumber: '',
         password: '',
         confirmPassword: '',
         email: '',
@@ -138,18 +142,18 @@ export default {
           { required: true, trigger: 'blur', message: '请输入您的账号' },
           { min: 2, max: 20, message: '用户账号长度必须介于 2 和 20 之间', trigger: 'blur' }
         ],
+        phonenumber: [
+          { required: true, trigger: 'blur', message: '请输入手机号' },
+          { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
+        ],
         confirmPassword: [
           { required: true, trigger: 'blur', message: '请再次输入您的密码' },
           { required: true, validator: equalToPassword, trigger: 'blur' }
         ],
-        email: [{
-          validator: (rule, value, callback) => {
-            if (!this.mailVerifyEnabled) return callback()
-            if (!value) return callback(new Error('请输入邮箱'))
-            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return callback(new Error('请输入正确的邮箱地址'))
-            callback()
-          }, trigger: 'blur'
-        }],
+        email: [
+          { required: true, trigger: 'blur', message: '请输入邮箱' },
+          { type: 'email', message: '请输入正确的邮箱地址', trigger: ['blur', 'change'] }
+        ],
         emailCode: [{
           validator: (rule, value, callback) => {
             if (!this.mailVerifyEnabled) return callback()

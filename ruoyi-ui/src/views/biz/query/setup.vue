@@ -206,7 +206,7 @@
 
         <div v-if="!isPublished" class="schedule-box mt16">
           <div class="publish-title">预约发布</div>
-          <p class="tip-block">设定未来时间后到点自动上线（约每分钟扫描）。</p>
+          <p class="tip-block">设定未来时间后到点自动上线（约每分钟扫描）。若已开启发布审批，到点将提交审批而非直接发布。</p>
           <el-date-picker
             v-model="scheduleAt"
             type="datetime"
@@ -597,13 +597,23 @@ export default {
     },
     saveReachSettings() {
       this.reachSaving = true
-      updateQuery({
+      const payload = {
         queryId: this.queryId,
-        startTime: this.reachForm.startTime || undefined,
-        endTime: this.reachForm.endTime || undefined,
         remindHours: this.reachForm.remindHours,
-        remindMail: this.reachForm.remindMail
-      }).then(() => {
+        remindMail: this.reachForm.remindMail,
+        params: {}
+      }
+      if (this.reachForm.startTime) {
+        payload.startTime = this.reachForm.startTime
+      } else {
+        payload.params.clearStartTime = true
+      }
+      if (this.reachForm.endTime) {
+        payload.endTime = this.reachForm.endTime
+      } else {
+        payload.params.clearEndTime = true
+      }
+      updateQuery(payload).then(() => {
         this.$modal.msgSuccess('已保存')
         this.refreshMeta()
       }).catch(() => {}).finally(() => { this.reachSaving = false })
